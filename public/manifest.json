@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "ContaLab - Contabilidad para Estudiantes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Gestión contable completa: Diario, Mayor y Balances. Diseñado para estudiantes.",
     "action": {
         "default_title": "Abrir ContaLab"
