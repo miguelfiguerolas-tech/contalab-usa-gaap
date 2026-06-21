@@ -25,6 +25,9 @@ dist copia
 # Packaged extension (Chrome Web Store upload artifact)
 *.zip
 
+# Store screenshots / marketing assets
+Capturas/
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
