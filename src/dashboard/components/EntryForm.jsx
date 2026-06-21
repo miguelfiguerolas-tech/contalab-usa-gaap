@@ -103,17 +103,17 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
 
         const { diff } = calculateTotals();
         if (Math.abs(diff) > 0.01) {
-            setError(`El asiento no está cuadrado. Diferencia: ${formatCurrency(diff)}`);
+            setError(`The entry is out of balance. Difference: ${formatCurrency(diff)}`);
             return;
         }
 
         if (!conceptoGlobal) {
-            setError('Debes indicar un concepto para el asiento.');
+            setError('Please enter a description for the entry.');
             return;
         }
 
         if (lines.some(l => parseFloat(l.debe) < 0 || parseFloat(l.haber) < 0)) {
-            setError('Los importes no pueden ser negativos: anota en la columna contraria.');
+            setError('Amounts cannot be negative: post to the opposite column instead.');
             return;
         }
 
@@ -125,21 +125,21 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
             return (tieneCuenta && !tieneImporte) || (!tieneCuenta && tieneImporte);
         });
         if (incompletas.length > 0) {
-            setError('Hay líneas incompletas (cuenta sin importe o importe sin cuenta). Complétalas o bórralas.');
+            setError('Some lines are incomplete (account without amount, or amount without account). Complete or remove them.');
             return;
         }
 
-        // Validar que hay cuentas seleccionadas
+        // Validate there are selected accounts
         const validLines = lines.filter(l => l.cuenta_codigo && (l.debe || l.haber));
         if (validLines.length < 2) {
-            setError('El asiento debe tener al menos 2 líneas válidas.');
+            setError('The entry must have at least 2 valid lines.');
             return;
         }
 
-        // Validar que las cuentas existen
+        // Validate the accounts exist
         const invalidAccounts = validLines.filter(l => !cuentas.find(c => c.codigo === l.cuenta_codigo));
         if (invalidAccounts.length > 0) {
-            setError(`Las siguientes cuentas no existen: ${invalidAccounts.map(l => l.cuenta_codigo).join(', ')}. Créalas en Configuración primero.`);
+            setError(`The following accounts do not exist: ${invalidAccounts.map(l => l.cuenta_codigo).join(', ')}. Create them in the Chart of Accounts first.`);
             return;
         }
 
@@ -152,7 +152,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
             onSuccess();
         } catch (err) {
             console.error(err);
-            setError('Error al guardar el asiento.');
+            setError('Error saving the entry.');
         }
     };
 
@@ -169,7 +169,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                 {/* Header */}
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h2 className="title-lg">
-                        {initialData ? `Editar Asiento #${initialData.numero}` : 'Nuevo Asiento'}
+                        {initialData ? `Edit Entry #${initialData.numero}` : 'New Entry'}
                     </h2>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button>
                 </div>
@@ -180,7 +180,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                     {/* Cabecera Asiento */}
                     <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Fecha</label>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Date</label>
                             <input
                                 type="date"
                                 value={fecha}
@@ -189,17 +189,17 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                             />
                             {fueraDeAnyo && (
                                 <p style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '0.25rem' }}>
-                                    ⚠ Fuera del ejercicio {anyo}
+                                    ⚠ Outside period {anyo}
                                 </p>
                             )}
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Concepto General</label>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Description</label>
                             <input
                                 type="text"
                                 value={conceptoGlobal}
                                 onChange={(e) => setConceptoGlobal(e.target.value)}
-                                placeholder="Ej. Constitución de la sociedad"
+                                placeholder="e.g. Owner investment"
                                 style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
                             />
                         </div>
@@ -215,10 +215,10 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                     <table className="table-std" style={{ marginBottom: '1rem' }}>
                         <thead>
                             <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '0.5rem', width: '35%' }}>Cuenta</th>
-                                <th style={{ padding: '0.5rem', width: '25%' }}>Concepto (Opcional)</th>
-                                <th style={{ padding: '0.5rem', width: '15%', textAlign: 'right' }}>Debe</th>
-                                <th style={{ padding: '0.5rem', width: '15%', textAlign: 'right' }}>Haber</th>
+                                <th style={{ padding: '0.5rem', width: '35%' }}>Account</th>
+                                <th style={{ padding: '0.5rem', width: '25%' }}>Memo (optional)</th>
+                                <th style={{ padding: '0.5rem', width: '15%', textAlign: 'right' }}>Debit</th>
+                                <th style={{ padding: '0.5rem', width: '15%', textAlign: 'right' }}>Credit</th>
                                 <th style={{ padding: '0.5rem', width: '5%' }}></th>
                             </tr>
                         </thead>
@@ -233,7 +233,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                                             onChange={(e) => handleCuentaChange(line.id, e.target.value)}
                                             onBlur={() => handleCuentaBlur(line.id)}
                                             onFocus={(e) => e.target.select()}
-                                            placeholder="Buscar cuenta..."
+                                            placeholder="Search account..."
                                             style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
                                         />
                                     </td>
@@ -242,7 +242,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                                             type="text"
                                             value={line.concepto}
                                             onChange={(e) => handleLineChange(line.id, 'concepto', e.target.value)}
-                                            placeholder={conceptoGlobal || "Concepto..."}
+                                            placeholder={conceptoGlobal || "Memo..."}
                                             style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
                                         />
                                     </td>
@@ -285,7 +285,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                         className="btn"
                         style={{ fontSize: '0.875rem', color: 'var(--color-primary)', padding: '0.5rem 0' }}
                     >
-                        <Plus size={16} style={{ marginRight: '0.25rem' }} /> Añadir línea
+                        <Plus size={16} style={{ marginRight: '0.25rem' }} /> Add line
                     </button>
 
                 </div>
@@ -301,15 +301,15 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '2rem', fontSize: '1rem' }}>
                             <div>
-                                <span style={{ color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Total Debe:</span>
+                                <span style={{ color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Total Debit:</span>
                                 <span style={{ fontWeight: 'bold' }}>{formatCurrency(totalDebe)}</span>
                             </div>
                             <div>
-                                <span style={{ color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Total Haber:</span>
+                                <span style={{ color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Total Credit:</span>
                                 <span style={{ fontWeight: 'bold' }}>{formatCurrency(totalHaber)}</span>
                             </div>
                             <div>
-                                <span style={{ color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Descuadre:</span>
+                                <span style={{ color: 'var(--color-text-muted)', marginRight: '0.5rem' }}>Out of balance:</span>
                                 <span style={{ fontWeight: 'bold', color: isBalanced ? 'var(--color-success)' : 'var(--color-danger)' }}>
                                     {formatCurrency(Math.abs(diff))}
                                 </span>
@@ -317,9 +317,9 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                         </div>
 
                         <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button className="btn" onClick={onClose} style={{ background: 'white', border: '1px solid var(--color-border)' }}>Cancelar</button>
+                            <button className="btn" onClick={onClose} style={{ background: 'white', border: '1px solid var(--color-border)' }}>Cancel</button>
                             <button className="btn btn-primary" onClick={handleSubmit} disabled={!isBalanced}>
-                                <Save size={18} style={{ marginRight: '0.5rem' }} /> Guardar Asiento
+                                <Save size={18} style={{ marginRight: '0.5rem' }} /> Save Entry
                             </button>
                         </div>
                     </div>

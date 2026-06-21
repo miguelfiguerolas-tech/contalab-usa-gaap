@@ -75,10 +75,10 @@ export default function Dashboard() {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('✓ Entrega descargada');
+            showToast('✓ Submission downloaded');
         } catch (error) {
-            console.error('Error al exportar:', error);
-            showToast('✗ Error al exportar el ejercicio');
+            console.error('Error exporting:', error);
+            showToast('✗ Error exporting the period');
         }
     };
 
@@ -106,7 +106,7 @@ export default function Dashboard() {
             case 'config':
                 return <Config ejercicio={activeEjercicio} />;
             default:
-                return <div>Selecciona una opción</div>;
+                return <div>Select an option</div>;
         }
     };
 
@@ -127,7 +127,7 @@ export default function Dashboard() {
                 </div>
 
                 <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f8fafc', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Ejercicio Activo</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Active period</p>
                     <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{activeEjercicio.nombre}</p>
                     <button
                         onClick={handleLogout}
@@ -147,22 +147,22 @@ export default function Dashboard() {
                         }}
                     >
                         <LogOut size={20} />
-                        Cerrar Ejercicio
+                        Close period
                     </button>
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <NavItem icon={<Home size={20} />} label="Panel de Control" active={activeTab === 'inicio'} onClick={() => setActiveTab('inicio')} />
-                    <NavItem icon={<BookOpen size={20} />} label="Libro Diario" active={activeTab === 'diario'} onClick={() => setActiveTab('diario')} />
-                    <NavItem icon={<FileText size={20} />} label="Libro Mayor" active={activeTab === 'mayor'} onClick={() => { setCuentaMayor(null); setActiveTab('mayor'); }} />
-                    <NavItem icon={<List size={20} />} label="Plan de Cuentas" active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
-                    <NavItem icon={<Calculator size={20} />} label="Balances" active={activeTab === 'balances'} onClick={() => setActiveTab('balances')} />
-                    <NavItem icon={<ClipboardCheck size={20} />} label="Auditoría" active={activeTab === 'resumen'} onClick={() => setActiveTab('resumen')} />
-                    <NavItem icon={<Download size={20} />} label="Exportar Entrega" active={false} onClick={handleExportJSON} />
+                    <NavItem icon={<Home size={20} />} label="Dashboard" active={activeTab === 'inicio'} onClick={() => setActiveTab('inicio')} />
+                    <NavItem icon={<BookOpen size={20} />} label="Journal" active={activeTab === 'diario'} onClick={() => setActiveTab('diario')} />
+                    <NavItem icon={<FileText size={20} />} label="General Ledger" active={activeTab === 'mayor'} onClick={() => { setCuentaMayor(null); setActiveTab('mayor'); }} />
+                    <NavItem icon={<List size={20} />} label="Chart of Accounts" active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
+                    <NavItem icon={<Calculator size={20} />} label="Statements" active={activeTab === 'balances'} onClick={() => setActiveTab('balances')} />
+                    <NavItem icon={<ClipboardCheck size={20} />} label="Review" active={activeTab === 'resumen'} onClick={() => setActiveTab('resumen')} />
+                    <NavItem icon={<Download size={20} />} label="Export Submission" active={false} onClick={handleExportJSON} />
                 </nav>
 
                 <div style={{ marginTop: 'auto', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-                    <NavItem icon={<Settings size={20} />} label="Gestión y Créditos" active={activeTab === 'config'} onClick={() => setActiveTab('config')} />
+                    <NavItem icon={<Settings size={20} />} label="Settings & Credits" active={activeTab === 'config'} onClick={() => setActiveTab('config')} />
                     <a
                         href={BMC_URL}
                         target="_blank"
@@ -180,7 +180,7 @@ export default function Dashboard() {
                         }}
                     >
                         <Coffee size={20} />
-                        Invítame a un café
+                        Buy me a coffee
                     </a>
                 </div>
             </aside>
@@ -189,13 +189,13 @@ export default function Dashboard() {
             <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
                 <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                        {activeTab === 'inicio' ? 'Panel de Control' :
-                            activeTab === 'diario' ? 'Libro Diario' :
-                                activeTab === 'mayor' ? 'Libro Mayor' :
-                                    activeTab === 'balances' ? 'Balances e Informes' :
-                                        activeTab === 'resumen' ? 'Auditoría y Corrección' :
-                                            activeTab === 'plan' ? 'Plan de Cuentas' :
-                                                'Gestión y Créditos'}
+                        {activeTab === 'inicio' ? 'Dashboard' :
+                            activeTab === 'diario' ? 'Journal' :
+                                activeTab === 'mayor' ? 'General Ledger' :
+                                    activeTab === 'balances' ? 'Financial Statements' :
+                                        activeTab === 'resumen' ? 'Review & Correction' :
+                                            activeTab === 'plan' ? 'Chart of Accounts' :
+                                                'Settings & Credits'}
                     </h2>
 
                 </header>

@@ -1,47 +1,50 @@
 # ContaLab
 
-**Contabilidad para estudiantes** — extensión de Chrome para aprender y practicar contabilidad según el Plan General Contable español: Libro Diario, Libro Mayor, Balances y un panel de Auditoría que detecta los errores típicos del aula.
+**Accounting for students** — a Chrome extension to learn and practice accounting under **US GAAP**: Journal, General Ledger, Trial Balance, Balance Sheet, Income Statement, and a Review panel that catches the typical classroom mistakes.
 
-Pensada para clases de FP y bachillerato: los datos viven en el navegador (IndexedDB, sin servidores ni cuentas), los alumnos entregan su ejercicio como archivo JSON y el profesor lo importa y lo corrige desde la pestaña Auditoría.
+Designed for accounting courses: data lives in the browser (IndexedDB, no servers or accounts), students hand in their work as a JSON file, and the instructor imports it and grades it from the Review tab.
 
-[**Instalar desde la Chrome Web Store**](https://chromewebstore.google.com/detail/gcjimlngbpkflmlcmhcmnebdehhklpic) · [Proponer mejoras](https://github.com/miguelfiguerolas-tech/contalab/issues) · [Invitar a un café](https://buymeacoffee.com/miguelfiguerola)
+## Features
 
-## Funcionalidades
+- **Journal**: entries with balance validation, search, and PDF export.
+- **General Ledger**: account statement with running balance or a classic **T-account** view, exportable to PDF.
+- **Chart of Accounts**: a preloaded US GAAP teaching chart (4-digit codes), custom sub-accounts, group filters (1-6).
+- **Financial Statements**: Trial Balance, Balance Sheet, and Income Statement, with PDF and CSV export.
+- **Review**: automatic checks (out-of-balance journal, accounting equation, negative cash, unnatural balances, revenue/expense sign, missing depreciation, missing cost of goods sold) with direct links to the accounts to review.
+- **Closing assistant**: generates the real closing entries (revenues/expenses → Income Summary → Retained Earnings, and Dividends → Retained Earnings).
+- **Submissions**: JSON export/import with a content fingerprint and submission card, to grade and to spot direct copies.
 
-- **Libro Diario**: asientos con validación de cuadre, búsqueda y exportación a PDF.
-- **Libro Mayor**: extracto con saldo acumulado o vista clásica de **cuenta en T**, exportable a PDF.
-- **Plan de Cuentas**: PGC básico precargado, subcuentas personalizadas, filtros por grupo (1-7).
-- **Balances**: Sumas y Saldos, Balance de Situación y Cuenta de Pérdidas y Ganancias, con exportación a PDF y CSV (formato Excel español).
-- **Auditoría**: chequeos automáticos (cuadre, ecuación contable, tesorería negativa, saldos antinaturales, signo de gastos/ingresos, amortización y variación de existencias pendientes) con enlaces directos a las cuentas a revisar.
-- **Asistente de cierre**: genera los asientos reales de regularización (6/7 → 129) y de cierre.
-- **Entregas**: exportación/importación en JSON con huella de contenido y ficha de entrega, para corregir y detectar copias directas.
+## Account model (US GAAP)
 
-## Desarrollo
+The default chart uses 4-digit codes:
 
-Requisitos: Node.js 18+.
+- `1xxx` Assets · `2xxx` Liabilities · `3xxx` Equity
+- `4xxx` Revenue · `5xxx` Cost of Sales · `6xxx` Operating & Other Expenses
+
+Key special accounts: **3100 Retained Earnings**, **3200 Dividends**, **3900 Income Summary**.
+
+## Development
+
+Requirements: Node.js 18+.
 
 ```bash
 npm install
-npm run dev      # servidor de desarrollo
-npm test         # tests (Vitest) de la lógica contable
-npm run build    # genera dist/
+npm run dev      # development server
+npm test         # tests (Vitest) for the accounting logic
+npm run build    # generates dist/
 ```
 
-Para cargar la extensión en Chrome: `chrome://extensions` → activar "Modo desarrollador" → "Cargar descomprimida" → seleccionar la carpeta `dist/`.
+To load the extension in Chrome: `chrome://extensions` → enable "Developer mode" → "Load unpacked" → select the `dist/` folder.
 
-### Estructura
+### Structure
 
-- `src/db/` — lógica contable y persistencia (IndexedDB vía [idb](https://github.com/jakearchibald/idb)): asientos, balances, cierre, copias de seguridad.
-- `src/dashboard/` — interfaz React.
-- `src/utils/` — formato es-ES, exportación PDF (jsPDF), enlaces.
-- `public/` — manifest de la extensión y service worker.
+- `src/db/` — accounting logic and persistence (IndexedDB via [idb](https://github.com/jakearchibald/idb)): chart of accounts (`coa_us.js`), account classification (`accountTypes.js`), statement structures (`statements_us.js`), entries, balances, closing, backups.
+- `src/dashboard/` — React interface.
+- `src/utils/` — en-US/USD formatting, PDF export (jsPDF), links.
+- `public/` — extension manifest and service worker.
 
-La lógica contable (balances, PyG, regularización/cierre) está en funciones puras con tests en `src/db/*.test.js`.
+The accounting logic (balances, income statement, closing) is in pure functions with tests in `src/db/*.test.js`.
 
-## Contribuir
+## License
 
-¿Eres docente o estudiante y echas algo en falta? [Abre un issue](https://github.com/miguelfiguerolas-tech/contalab/issues) contando el caso de uso. Los pull requests son bienvenidos — si tocas la lógica contable, acompáñala de tests (`npm test`).
-
-## Licencia
-
-[MIT](LICENSE) — © Miguel Figuerola. Úsala, modifícala y compártela libremente.
+[MIT](LICENSE) — © Miguel Figuerola. Use it, modify it, and share it freely.

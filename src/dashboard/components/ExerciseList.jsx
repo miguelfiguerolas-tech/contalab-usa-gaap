@@ -40,13 +40,13 @@ export default function ExerciseList({ onSelect }) {
 
     const handleDelete = async (id, e) => {
         e.stopPropagation();
-        if (confirm('¿Estás seguro de borrar este ejercicio? Se perderán todos los datos.')) {
+        if (confirm('Are you sure you want to delete this period? All data will be lost.')) {
             await deleteEjercicio(id);
             loadEjercicios();
         }
     };
 
-    if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando...</div>;
+    if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
 
     return (
         <div style={{
@@ -56,7 +56,7 @@ export default function ExerciseList({ onSelect }) {
         }}>
             <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                 <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>ContaLab</h1>
-                <p style={{ fontSize: '1.125rem', color: 'var(--color-text-muted)' }}>Selecciona un ejercicio para comenzar a trabajar</p>
+                <p style={{ fontSize: '1.125rem', color: 'var(--color-text-muted)' }}>Select a period to start working</p>
             </div>
 
             <div style={{
@@ -95,7 +95,7 @@ export default function ExerciseList({ onSelect }) {
                     }}>
                         <Plus size={24} />
                     </div>
-                    <span style={{ fontWeight: 500 }}>Crear Nuevo Ejercicio</span>
+                    <span style={{ fontWeight: 500 }}>Create New Period</span>
                 </button>
 
                 {/* Lista de Ejercicios */}
@@ -135,7 +135,7 @@ export default function ExerciseList({ onSelect }) {
                                     padding: '4px',
                                     cursor: 'pointer'
                                 }}
-                                title="Eliminar ejercicio"
+                                title="Delete period"
                             >
                                 <Trash2 size={16} />
                             </button>
@@ -145,7 +145,7 @@ export default function ExerciseList({ onSelect }) {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
                             <Calendar size={14} />
-                            <span>Ejercicio {ej.anyo}</span>
+                            <span>FY {ej.anyo}</span>
                         </div>
                     </div>
                 ))}
@@ -155,16 +155,16 @@ export default function ExerciseList({ onSelect }) {
             {isCreating && (
                 <div className="modal-overlay">
                     <div className="card" style={{ width: '400px', maxWidth: '90%' }}>
-                        <h2 style={{ marginBottom: '1.5rem' }}>Nuevo Ejercicio</h2>
+                        <h2 style={{ marginBottom: '1.5rem' }}>New Period</h2>
                         <form onSubmit={handleCreate}>
                             <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Nombre de la Empresa / Ejercicio</label>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Company / Period Name</label>
                                 <input
                                     type="text"
                                     autoFocus
                                     value={newNombre}
                                     onChange={(e) => setNewNombre(e.target.value)}
-                                    placeholder="Ej. Mi Empresa S.L."
+                                    placeholder="e.g. My Company Inc."
                                     style={{
                                         width: '100%',
                                         padding: '0.75rem',
@@ -176,7 +176,7 @@ export default function ExerciseList({ onSelect }) {
                                 />
                             </div>
                             <div style={{ marginBottom: '1.5rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Año Fiscal</label>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Fiscal Year</label>
                                 <input
                                     type="number"
                                     value={newAnyo}
@@ -198,10 +198,10 @@ export default function ExerciseList({ onSelect }) {
                                     onClick={() => setIsCreating(false)}
                                     style={{ background: 'transparent', border: '1px solid var(--color-border)' }}
                                 >
-                                    Cancelar
+                                    Cancel
                                 </button>
                                 <button type="submit" className="btn btn-primary">
-                                    Crear Ejercicio
+                                    Create Period
                                 </button>
                             </div>
                         </form>

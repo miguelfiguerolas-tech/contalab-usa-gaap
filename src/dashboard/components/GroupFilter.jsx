@@ -1,22 +1,22 @@
 import React from 'react';
-import { PGC_GRUPOS } from '../../db/pgc_structure';
+import { ACCOUNT_GROUPS } from '../../db/statements_us';
 
-// Chips de filtro por grupo del PGC (1-7). value '' = todos los grupos.
+// Filter chips by account group (1-6). value '' = all groups.
 export default function GroupFilter({ value, onChange }) {
     return (
         <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <Chip
                 active={value === ''}
-                label="Todas"
-                title="Mostrar todos los grupos"
+                label="All"
+                title="Show all groups"
                 onClick={() => onChange('')}
             />
-            {Object.entries(PGC_GRUPOS).map(([grupo, nombre]) => (
+            {Object.entries(ACCOUNT_GROUPS).map(([grupo, nombre]) => (
                 <Chip
                     key={grupo}
                     active={value === grupo}
                     label={grupo}
-                    title={`Grupo ${grupo}: ${nombre}`}
+                    title={`Group ${grupo}: ${nombre}`}
                     onClick={() => onChange(value === grupo ? '' : grupo)}
                 />
             ))}

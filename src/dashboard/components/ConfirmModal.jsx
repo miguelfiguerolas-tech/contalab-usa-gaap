@@ -17,7 +17,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onClos
                 </p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
                     <button className="btn btn-secondary" onClick={onClose}>
-                        Cancelar
+                        Cancel
                     </button>
                     <button
                         className="btn btn-primary"
@@ -26,7 +26,7 @@ export default function ConfirmModal({ isOpen, title, message, onConfirm, onClos
                             onClose();
                         }}
                     >
-                        Confirmar
+                        Confirm
                     </button>
                 </div>
             </div>

@@ -13,7 +13,7 @@ export default function Ledger({ ejercicio, initialCuenta }) {
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [grupoFiltro, setGrupoFiltro] = useState('');
-    const [vistaT, setVistaT] = useState(false); // false = extracto, true = cuenta en T
+    const [vistaT, setVistaT] = useState(false); // false = statement, true = T-account
 
     useEffect(() => {
         loadCuentas();
@@ -69,7 +69,7 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                         <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                         <input
                             type="text"
-                            placeholder="Buscar cuenta..."
+                            placeholder="Search account..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{
@@ -122,17 +122,17 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                                 <button
                                     className="btn"
                                     onClick={() => setVistaT(!vistaT)}
-                                    title={vistaT ? 'Ver como extracto' : 'Ver como cuenta en T'}
+                                    title={vistaT ? 'View as statement' : 'View as T-account'}
                                     style={{ background: 'white', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}
                                 >
                                     {vistaT ? <Table2 size={16} /> : <Columns2 size={16} />}
-                                    {vistaT ? 'Extracto' : 'Cuenta en T'}
+                                    {vistaT ? 'Statement' : 'T-account'}
                                 </button>
                                 <button
                                     className="btn"
                                     onClick={() => exportMayorToPDF(movimientos, currentCuenta, ejercicio)}
                                     disabled={movimientos.length === 0}
-                                    title="Exportar el mayor de esta cuenta a PDF"
+                                    title="Export this account's ledger to PDF"
                                     style={{ background: 'white', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#dc2626' }}
                                 >
                                     <FileText size={16} />
@@ -148,25 +148,25 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                             <table className="table-std">
                                 <thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
                                     <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                        <th style={{ padding: '1rem', width: '12%' }}>Fecha</th>
-                                        <th style={{ padding: '1rem', width: '10%' }}>Asiento</th>
-                                        <th style={{ padding: '1rem', width: '38%' }}>Concepto</th>
-                                        <th style={{ padding: '1rem', textAlign: 'right', width: '13%' }}>Debe</th>
-                                        <th style={{ padding: '1rem', textAlign: 'right', width: '13%' }}>Haber</th>
-                                        <th style={{ padding: '1rem', textAlign: 'right', width: '14%' }}>Saldo</th>
+                                        <th style={{ padding: '1rem', width: '12%' }}>Date</th>
+                                        <th style={{ padding: '1rem', width: '10%' }}>Entry</th>
+                                        <th style={{ padding: '1rem', width: '38%' }}>Memo</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right', width: '13%' }}>Debit</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right', width: '13%' }}>Credit</th>
+                                        <th style={{ padding: '1rem', textAlign: 'right', width: '14%' }}>Balance</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {movimientos.length === 0 ? (
                                         <tr>
                                             <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                                No hay movimientos en esta cuenta.
+                                                No activity in this account.
                                             </td>
                                         </tr>
                                     ) : (
                                         movimientos.map((mov, idx) => (
                                             <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '0.75rem 1rem' }}>{new Date(mov.fecha).toLocaleDateString()}</td>
+                                                <td style={{ padding: '0.75rem 1rem' }}>{new Date(mov.fecha).toLocaleDateString('en-US')}</td>
                                                 <td style={{ padding: '0.75rem 1rem' }}>
                                                     <span style={{
                                                         background: '#f1f5f9',
@@ -203,7 +203,7 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                     </>
                 ) : (
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-                        Selecciona una cuenta para ver su mayor
+                        Select an account to view its ledger
                     </div>
                 )}
             </div>
@@ -223,7 +223,7 @@ function TAccount({ movimientos, cuenta }) {
     if (movimientos.length === 0) {
         return (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-                No hay movimientos en esta cuenta.
+                No activity in this account.
             </div>
         );
     }
@@ -247,12 +247,12 @@ function TAccount({ movimientos, cuenta }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '3px solid var(--color-text-main)' }}>
                     {/* Debe */}
                     <div style={{ borderRight: '3px solid var(--color-text-main)', minHeight: '180px', paddingTop: '0.5rem' }}>
-                        <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>DEBE</div>
+                        <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>DEBIT</div>
                         {cargos.map((m, i) => <Linea key={i} mov={m} importe={m.debe} />)}
                     </div>
-                    {/* Haber */}
+                    {/* Credit */}
                     <div style={{ minHeight: '180px', paddingTop: '0.5rem' }}>
-                        <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>HABER</div>
+                        <div style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>CREDIT</div>
                         {abonos.map((m, i) => <Linea key={i} mov={m} importe={m.haber} />)}
                     </div>
 
@@ -275,9 +275,9 @@ function TAccount({ movimientos, cuenta }) {
                     border: '1px solid var(--color-border)',
                     fontSize: '0.95rem'
                 }}>
-                    Saldo: <strong>{formatNumber(Math.abs(saldo))}</strong>{' '}
+                    Balance: <strong>{formatNumber(Math.abs(saldo))}</strong>{' '}
                     <span style={{ color: 'var(--color-text-muted)' }}>
-                        {saldo > 0.004 ? '(Deudor)' : saldo < -0.004 ? '(Acreedor)' : '(Saldada)'}
+                        {saldo > 0.004 ? '(Debit)' : saldo < -0.004 ? '(Credit)' : '(Zero)'}
                     </span>
                 </div>
             </div>

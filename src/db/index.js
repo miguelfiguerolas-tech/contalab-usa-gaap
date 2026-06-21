@@ -1,5 +1,5 @@
 import { openDB } from 'idb';
-import { PGC_BASICO } from './pgc_es';
+import { PGC_BASICO } from './coa_us';
 
 const DB_NAME = 'ContaLabDB';
 const DB_VERSION = 1;
@@ -114,7 +114,7 @@ export const updateCuenta = async (id, nuevoCodigo, nuevoNombre) => {
 
     const cuentaStore = tx.objectStore('cuentas');
     const cuenta = await cuentaStore.get(id);
-    if (!cuenta) throw new Error('Cuenta no encontrada');
+    if (!cuenta) throw new Error('Account not found');
 
     const viejoCodigo = cuenta.codigo;
     const ejercicioId = cuenta.ejercicio_id;
@@ -155,7 +155,7 @@ export const deleteCuenta = async (id) => {
     const apuntes = await index.getAll([cuenta.ejercicio_id, cuenta.codigo]);
 
     if (apuntes.length > 0) {
-        throw new Error(`No se puede eliminar la cuenta ${cuenta.codigo} porque tiene ${apuntes.length} movimientos asociados.`);
+        throw new Error(`Account ${cuenta.codigo} cannot be deleted because it has ${apuntes.length} related entries.`);
     }
 
     await cuentaStore.delete(id);
@@ -249,7 +249,7 @@ export const updateAsiento = async (id, fecha, concepto, apuntes) => {
     // 1. Update header
     const asientoStore = tx.objectStore('asientos');
     const asiento = await asientoStore.get(id);
-    if (!asiento) throw new Error('Asiento no encontrado');
+    if (!asiento) throw new Error('Entry not found');
 
     asiento.fecha = fecha;
     asiento.concepto = concepto;

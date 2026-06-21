@@ -44,8 +44,8 @@ export default function Journal({ ejercicio }) {
     const handleDelete = (id) => {
         setConfirmModal({
             isOpen: true,
-            title: 'Confirmar Eliminación',
-            message: '¿Estás seguro de eliminar este asiento? Esta acción no se puede deshacer.',
+            title: 'Confirm deletion',
+            message: 'Are you sure you want to delete this entry? This action cannot be undone.',
             onConfirm: async () => {
                 await deleteAsiento(id);
                 loadData();
@@ -86,7 +86,7 @@ export default function Journal({ ejercicio }) {
                     <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                     <input
                         type="text"
-                        placeholder="Buscar asientos..."
+                        placeholder="Search entries..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{
@@ -102,7 +102,7 @@ export default function Journal({ ejercicio }) {
                         className="btn"
                         onClick={() => exportDiarioToPDF(asientos, cuentasMap, ejercicio)}
                         disabled={asientos.length === 0}
-                        title="Exportar el Libro Diario completo a PDF"
+                        title="Export the full Journal to PDF"
                         style={{ background: 'white', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626' }}
                     >
                         <FileText size={18} />
@@ -115,7 +115,7 @@ export default function Journal({ ejercicio }) {
                             setShowForm(true);
                         }}
                     >
-                        <Plus size={18} style={{ marginRight: '0.5rem' }} /> Nuevo Asiento
+                        <Plus size={18} style={{ marginRight: '0.5rem' }} /> New Entry
                     </button>
                 </div>
             </div>
@@ -124,7 +124,7 @@ export default function Journal({ ejercicio }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {filteredAsientos.length === 0 && !loading && (
                     <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)', background: 'white', borderRadius: 'var(--radius-lg)', border: '1px dashed var(--color-border)' }}>
-                        <p>{term ? 'Ningún asiento coincide con la búsqueda.' : 'No hay asientos registrados en este ejercicio.'}</p>
+                        <p>{term ? 'No entries match your search.' : 'No entries recorded in this period yet.'}</p>
                     </div>
                 )}
 
@@ -142,7 +142,7 @@ export default function Journal({ ejercicio }) {
                                 <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>#{asiento.numero}</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
                                     <Calendar size={14} />
-                                    <span>{new Date(asiento.fecha).toLocaleDateString()}</span>
+                                    <span>{new Date(asiento.fecha).toLocaleDateString('en-US')}</span>
                                 </div>
                                 <span style={{ fontWeight: 500 }}>{asiento.concepto}</span>
                             </div>
@@ -151,14 +151,14 @@ export default function Journal({ ejercicio }) {
                                 <button
                                     onClick={() => handleEdit(asiento)}
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}
-                                    title="Editar asiento"
+                                    title="Edit entry"
                                 >
                                     <Edit2 size={16} />
                                 </button>
                                 <button
                                     onClick={() => handleDelete(asiento.id)}
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
-                                    title="Eliminar asiento"
+                                    title="Delete entry"
                                 >
                                     <Trash2 size={16} />
                                 </button>
@@ -168,11 +168,11 @@ export default function Journal({ ejercicio }) {
                         <table className="table-std">
                             <thead>
                                 <tr style={{ textAlign: 'left' }}>
-                                    <th style={{ padding: '0.5rem 1.5rem', width: '15%' }}>Cuenta</th>
-                                    <th style={{ padding: '0.5rem 1.5rem', width: '35%' }}>Nombre</th>
-                                    <th style={{ padding: '0.5rem 1.5rem', width: '30%' }}>Concepto</th>
-                                    <th style={{ padding: '0.5rem 1.5rem', textAlign: 'right', width: '10%' }}>Debe</th>
-                                    <th style={{ padding: '0.5rem 1.5rem', textAlign: 'right', width: '10%' }}>Haber</th>
+                                    <th style={{ padding: '0.5rem 1.5rem', width: '15%' }}>Account</th>
+                                    <th style={{ padding: '0.5rem 1.5rem', width: '35%' }}>Name</th>
+                                    <th style={{ padding: '0.5rem 1.5rem', width: '30%' }}>Memo</th>
+                                    <th style={{ padding: '0.5rem 1.5rem', textAlign: 'right', width: '10%' }}>Debit</th>
+                                    <th style={{ padding: '0.5rem 1.5rem', textAlign: 'right', width: '10%' }}>Credit</th>
                                 </tr>
                             </thead>
                             <tbody>

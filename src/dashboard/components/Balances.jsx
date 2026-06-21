@@ -81,16 +81,16 @@ export default function Balances({ ejercicio }) {
     const handleExportCSV = () => {
         if (!data) return;
 
-        // Formato para Excel en español: separador ';' y decimal con coma
-        const num = (n) => n.toFixed(2).replace('.', ',');
+        // CSV format: comma separator, dot decimal, quoted text fields
+        const num = (n) => n.toFixed(2);
         const txt = (s) => `"${String(s).replace(/"/g, '""')}"`;
 
         let csvContent = "";
         let fileName = "";
 
         if (activeTab === 'sumas') {
-            fileName = `SumasYSaldos_${ejercicio.nombre}.csv`;
-            csvContent += "Cuenta;Nombre;Suma Debe;Suma Haber;Saldo Deudor;Saldo Acreedor\n";
+            fileName = `TrialBalance_${ejercicio.nombre}.csv`;
+            csvContent += "Account,Name,Total Debit,Total Credit,Debit Balance,Credit Balance\n";
             data.forEach(row => {
                 const line = [
                     row.codigo,
@@ -99,18 +99,18 @@ export default function Balances({ ejercicio }) {
                     num(row.sumaHaber),
                     num(row.saldoDeudor),
                     num(row.saldoAcreedor)
-                ].join(";");
+                ].join(",");
                 csvContent += line + "\n";
             });
         } else if (activeTab === 'situacion') {
-            fileName = `BalanceSituacion_${ejercicio.nombre}.csv`;
+            fileName = `BalanceSheet_${ejercicio.nombre}.csv`;
 
             const flatten = (nodes, level = 0) => {
                 let rows = [];
                 nodes.forEach(node => {
                     if (node.amount !== 0 || level <= 1) { // Same visibility logic as UI
                         const indent = "  ".repeat(level);
-                        rows.push([txt(`${indent}${node.label}`), num(node.amount)].join(";"));
+                        rows.push([txt(`${indent}${node.label}`), num(node.amount)].join(","));
                         if (node.children) {
                             rows = rows.concat(flatten(node.children, level + 1));
                         }
@@ -119,21 +119,21 @@ export default function Balances({ ejercicio }) {
                 return rows;
             };
 
-            csvContent += "ACTIVO;Importe\n";
+            csvContent += "ASSETS,Amount\n";
             csvContent += flatten(data.activo).join("\n");
-            csvContent += "\n\nPATRIMONIO NETO Y PASIVO;Importe\n";
+            csvContent += "\n\nLIABILITIES & EQUITY,Amount\n";
             csvContent += flatten(data.patrimonioPasivo).join("\n");
 
         } else if (activeTab === 'pyg') {
-            fileName = `PerdidasYGanancias_${ejercicio.nombre}.csv`;
-            csvContent += "Concepto;Importe\n";
+            fileName = `IncomeStatement_${ejercicio.nombre}.csv`;
+            csvContent += "Item,Amount\n";
             data.forEach(row => {
                 if (!row) return;
-                csvContent += [txt(row.label), num(row.amount)].join(";") + "\n";
+                csvContent += [txt(row.label), num(row.amount)].join(",") + "\n";
             });
         }
 
-        // BOM para que Excel reconozca UTF-8 (tildes y ñ)
+        // BOM so Excel recognizes UTF-8
         const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -158,12 +158,12 @@ export default function Balances({ ejercicio }) {
                 <table className="table-std" style={{ minWidth: '800px' }}>
                     <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '2px solid var(--color-border)' }}>
-                            <th style={{ padding: '1rem', textAlign: 'left' }}>Cuenta</th>
-                            <th style={{ padding: '1rem', textAlign: 'left' }}>Nombre</th>
-                            <th style={{ padding: '1rem', textAlign: 'right' }}>Suma Debe</th>
-                            <th style={{ padding: '1rem', textAlign: 'right' }}>Suma Haber</th>
-                            <th style={{ padding: '1rem', textAlign: 'right' }}>Saldo Deudor</th>
-                            <th style={{ padding: '1rem', textAlign: 'right' }}>Saldo Acreedor</th>
+                            <th style={{ padding: '1rem', textAlign: 'left' }}>Account</th>
+                            <th style={{ padding: '1rem', textAlign: 'left' }}>Name</th>
+                            <th style={{ padding: '1rem', textAlign: 'right' }}>Total Debit</th>
+                            <th style={{ padding: '1rem', textAlign: 'right' }}>Total Credit</th>
+                            <th style={{ padding: '1rem', textAlign: 'right' }}>Debit Balance</th>
+                            <th style={{ padding: '1rem', textAlign: 'right' }}>Credit Balance</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -179,7 +179,7 @@ export default function Balances({ ejercicio }) {
                         ))}
                         {/* Totales */}
                         <tr style={{ background: '#f1f5f9', fontWeight: 'bold', borderTop: '2px solid var(--color-border)' }}>
-                            <td colSpan="2" style={{ padding: '1rem', textAlign: 'right' }}>TOTALES</td>
+                            <td colSpan="2" style={{ padding: '1rem', textAlign: 'right' }}>TOTALS</td>
                             <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(totalSumaDebe)}</td>
                             <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(totalSumaHaber)}</td>
                             <td style={{ padding: '1rem', textAlign: 'right' }}>{formatCurrency(totalSaldoDeudor)}</td>
@@ -202,7 +202,7 @@ export default function Balances({ ejercicio }) {
                 {/* Activo */}
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                     <div style={{ padding: '1rem', background: '#f0fdf4', borderBottom: '1px solid #bbf7d0' }}>
-                        <h3 style={{ color: '#166534', fontWeight: 'bold' }}>ACTIVO</h3>
+                        <h3 style={{ color: '#166534', fontWeight: 'bold' }}>ASSETS</h3>
                     </div>
                     <div style={{ padding: '0' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -213,7 +213,7 @@ export default function Balances({ ejercicio }) {
                             </tbody>
                             <tfoot>
                                 <tr style={{ background: '#f0fdf4', borderTop: '2px solid #166534' }}>
-                                    <td style={{ padding: '1rem', fontWeight: 'bold', color: '#166534' }}>TOTAL ACTIVO</td>
+                                    <td style={{ padding: '1rem', fontWeight: 'bold', color: '#166534' }}>TOTAL ASSETS</td>
                                     <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', color: '#166534' }}>{formatCurrency(totalActivo)}</td>
                                 </tr>
                             </tfoot>
@@ -224,7 +224,7 @@ export default function Balances({ ejercicio }) {
                 {/* Pasivo + Neto */}
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                     <div style={{ padding: '1rem', background: '#fef2f2', borderBottom: '1px solid #fecaca' }}>
-                        <h3 style={{ color: '#991b1b', fontWeight: 'bold' }}>PATRIMONIO NETO Y PASIVO</h3>
+                        <h3 style={{ color: '#991b1b', fontWeight: 'bold' }}>LIABILITIES & EQUITY</h3>
                     </div>
                     <div style={{ padding: '0' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -235,7 +235,7 @@ export default function Balances({ ejercicio }) {
                             </tbody>
                             <tfoot>
                                 <tr style={{ background: '#fef2f2', borderTop: '2px solid #991b1b' }}>
-                                    <td style={{ padding: '1rem', fontWeight: 'bold', color: '#991b1b' }}>TOTAL PATRIMONIO NETO Y PASIVO</td>
+                                    <td style={{ padding: '1rem', fontWeight: 'bold', color: '#991b1b' }}>TOTAL LIABILITIES & EQUITY</td>
                                     <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', color: '#991b1b' }}>{formatCurrency(totalPatrimonioPasivo)}</td>
                                 </tr>
                             </tfoot>
@@ -252,7 +252,7 @@ export default function Balances({ ejercicio }) {
         return (
             <div className="card" style={{ maxWidth: '900px', margin: '0 auto', padding: '0', overflow: 'hidden' }}>
                 <div style={{ padding: '1.5rem', background: '#f8fafc', borderBottom: '1px solid var(--color-border)' }}>
-                    <h3 className="title-lg" style={{ textAlign: 'center' }}>Cuenta de Pérdidas y Ganancias</h3>
+                    <h3 className="title-lg" style={{ textAlign: 'center' }}>Income Statement</h3>
                 </div>
 
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -260,7 +260,7 @@ export default function Balances({ ejercicio }) {
                         {data.map(row => {
                             if (!row) return null;
                             const isTotal = row.isTotal;
-                            const isResult = row.id === 'D_RES_EJERCICIO';
+                            const isResult = row.id === 'NET_INCOME';
 
                             return (
                                 <tr key={row.id} style={{
@@ -302,21 +302,21 @@ export default function Balances({ ejercicio }) {
                         style={{ background: activeTab !== 'sumas' ? 'white' : undefined, border: activeTab !== 'sumas' ? '1px solid var(--color-border)' : undefined }}
                         onClick={() => setActiveTab('sumas')}
                     >
-                        Sumas y Saldos
+                        Trial Balance
                     </button>
                     <button
                         className={`btn ${activeTab === 'situacion' ? 'btn-primary' : ''}`}
                         style={{ background: activeTab !== 'situacion' ? 'white' : undefined, border: activeTab !== 'situacion' ? '1px solid var(--color-border)' : undefined }}
                         onClick={() => setActiveTab('situacion')}
                     >
-                        Balance de Situación
+                        Balance Sheet
                     </button>
                     <button
                         className={`btn ${activeTab === 'pyg' ? 'btn-primary' : ''}`}
                         style={{ background: activeTab !== 'pyg' ? 'white' : undefined, border: activeTab !== 'pyg' ? '1px solid var(--color-border)' : undefined }}
                         onClick={() => setActiveTab('pyg')}
                     >
-                        Pérdidas y Ganancias
+                        Income Statement
                     </button>
                 </div>
 
@@ -343,7 +343,7 @@ export default function Balances({ ejercicio }) {
             </div>
 
             {loading ? (
-                <div style={{ textAlign: 'center', padding: '3rem' }}>Calculando balances...</div>
+                <div style={{ textAlign: 'center', padding: '3rem' }}>Calculating...</div>
             ) : (
                 <>
                     {activeTab === 'sumas' && renderSumasYSaldos()}

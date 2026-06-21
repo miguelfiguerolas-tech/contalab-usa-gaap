@@ -3,6 +3,7 @@ import { CheckCircle, AlertTriangle, XCircle, Scale, Lock } from 'lucide-react';
 import { getAsientos } from '../../db';
 import { getSumasYSaldos, getBalanceSituacion, getCuentaResultados } from '../../db/balances';
 import { crearAsientoRegularizacion, crearAsientoCierre } from '../../db/cierre';
+import { isCash, isExpense, isRevenue } from '../../db/accountTypes';
 import { formatCurrency } from '../../utils/format';
 
 export default function Summary({ ejercicio, onVerCuenta }) {
@@ -30,24 +31,24 @@ export default function Summary({ ejercicio, onVerCuenta }) {
             const totalHaber = sumas.reduce((acc, c) => acc + c.sumaHaber, 0);
             const descuadreDiario = Math.abs(totalDebe - totalHaber);
 
-            // 2. Validar Tesorería Negativa (Cuentas 57...)
-            const tesoreriaRoja = sumas.filter(c => c.codigo.startsWith('57') && c.saldoAcreedor > 0);
+            // 2. Negative cash (Cash accounts 10xx with a credit balance)
+            const tesoreriaRoja = sumas.filter(c => isCash(c.codigo) && c.saldoAcreedor > 0);
 
             // 3. Validar Ecuación Contable
             const totalActivo = balance.activo.reduce((s, node) => s + node.amount, 0);
             const totalPatrimonioPasivo = balance.patrimonioPasivo.reduce((s, node) => s + node.amount, 0);
             const ecuacionDiff = Math.abs(totalActivo - totalPatrimonioPasivo);
 
-            // 4. Obtener Resultado del Ejercicio
-            const filaResultado = pyg.find(row => row.id === 'D_RES_EJERCICIO');
+            // 4. Net income for the period
+            const filaResultado = pyg.find(row => row.id === 'NET_INCOME');
             const resultadoPyG = filaResultado ? filaResultado.amount : 0;
 
-            // 5. Detectar Apertura y Cierre
-            // getAsientos devuelve orden descendente: ordenamos por número para
-            // mirar el primero y el último asiento reales del diario.
+            // 5. Detect opening and closing entries.
+            // getAsientos returns descending order: sort by number to look at the
+            // first and last real journal entries.
             const porNumero = [...asientos].sort((a, b) => a.numero - b.numero);
-            const tieneApertura = porNumero.length > 0 && porNumero[0].concepto.toLowerCase().includes('apertura');
-            const tieneCierre = porNumero.length > 0 && porNumero[porNumero.length - 1].concepto.toLowerCase().includes('cierre');
+            const tieneApertura = porNumero.length > 0 && porNumero[0].concepto.toLowerCase().includes('opening');
+            const tieneCierre = porNumero.length > 0 && porNumero[porNumero.length - 1].concepto.toLowerCase().includes('closing');
 
             // 5b. Rango de redacción (cuándo se crearon los asientos), para la ficha de entrega
             const fechasCreacion = asientos.map(a => a.created_at).filter(Boolean).sort();
@@ -55,34 +56,37 @@ export default function Summary({ ejercicio, onVerCuenta }) {
                 ? { desde: fechasCreacion[0], hasta: fechasCreacion[fechasCreacion.length - 1] }
                 : null;
 
-            // 6. Saldos Antinaturales
+            // 6. Unnatural balances: a payable with a debit balance, or a
+            // receivable with a credit balance.
             const saldosAntinaturales = sumas.filter(c => {
-                const esProveedor = (c.codigo.startsWith('40') || c.codigo.startsWith('41')) && c.saldoDeudor > c.saldoAcreedor;
-                const esCliente = c.codigo.startsWith('43') && c.saldoAcreedor > c.saldoDeudor;
-                return esProveedor || esCliente;
+                const esPayable = c.codigo === '2010' && c.saldoDeudor > c.saldoAcreedor;
+                const esReceivable = (c.codigo === '1100' || c.codigo === '1200') && c.saldoAcreedor > c.saldoDeudor;
+                return esPayable || esReceivable;
             });
 
-            // 6b. Gastos/Ingresos con saldo invertido (suele ser un asiento al revés).
-            // Se excluyen las cuentas que legítimamente llevan signo contrario:
-            // 606/608/609 (rappels y devoluciones de compras), 706/708/709 (de ventas)
-            // y la variación de existencias (61/71), que puede ir en ambos sentidos.
+            // 6b. Revenue/expense accounts with an inverted balance (usually a
+            // reversed entry). Skip the contra accounts that legitimately carry
+            // the opposite sign: 4020/4030 (sales returns and discounts) and
+            // 5030/5040 (purchase returns and discounts).
             const esExcepcionSigno = (codigo) =>
-                /^(606|608|609|706|708|709|61|71)/.test(codigo);
+                /^(4020|4030|5030|5040)/.test(codigo);
             const gastosIngresosInvertidos = sumas.filter(c => {
                 if (esExcepcionSigno(c.codigo)) return false;
-                const gastoAcreedor = c.codigo.startsWith('6') && c.saldoAcreedor > c.saldoDeudor;
-                const ingresoDeudor = c.codigo.startsWith('7') && c.saldoDeudor > c.saldoAcreedor;
+                const gastoAcreedor = isExpense(c.codigo) && c.saldoAcreedor > c.saldoDeudor;
+                const ingresoDeudor = isRevenue(c.codigo) && c.saldoDeudor > c.saldoAcreedor;
                 return gastoAcreedor || ingresoDeudor;
             });
 
-            // 7. Olvido de Amortización
-            const tieneInmovilizado = sumas.some(c => c.codigo.startsWith('2'));
-            const tieneGastoAmortizacion = sumas.some(c => c.codigo.startsWith('68'));
+            // 7. Missing depreciation: depreciable PP&E present (1510-1545) but no
+            // Depreciation Expense (6030) recorded.
+            const tieneInmovilizado = sumas.some(c => /^15[1-4]/.test(c.codigo));
+            const tieneGastoAmortizacion = sumas.some(c => c.codigo.startsWith('6030'));
             const olvidoAmortizacion = tieneInmovilizado && !tieneGastoAmortizacion;
 
-            // 8. Olvido de Variación de Existencias
-            const tieneExistencias = sumas.some(c => c.codigo.startsWith('3'));
-            const tieneVariacion = sumas.some(c => c.codigo.startsWith('61') || c.codigo.startsWith('71'));
+            // 8. Missing cost of goods sold: inventory present (1300) but no cost
+            // of sales (5xxx) recorded.
+            const tieneExistencias = sumas.some(c => c.codigo.startsWith('1300'));
+            const tieneVariacion = sumas.some(c => c.codigo.startsWith('5'));
             const olvidoVariacion = tieneExistencias && !tieneVariacion;
 
             setAudit({
@@ -111,12 +115,12 @@ export default function Summary({ ejercicio, onVerCuenta }) {
     };
 
     const handleRegularizar = async () => {
-        if (!confirm(`Se creará el asiento de regularización a 31/12/${ejercicio.anyo}: salda todas las cuentas de los grupos 6 y 7 contra la 129. ¿Continuar?`)) return;
+        if (!confirm(`This posts the first closing entry dated 12/31/${ejercicio.anyo}: it closes every revenue and expense account to Income Summary (3900). Continue?`)) return;
         setWorking(true);
         setCierreMsg({ type: '', text: '' });
         try {
             const resultado = await crearAsientoRegularizacion(ejercicio.id, ejercicio.anyo);
-            setCierreMsg({ type: 'success', text: `Asiento de regularización creado. Resultado del ejercicio: ${formatCurrency(resultado)}. Puedes verlo (o borrarlo para deshacer) en el Libro Diario.` });
+            setCierreMsg({ type: 'success', text: `Closing entry posted. Net income for the period: ${formatCurrency(resultado)}. You can view it (or delete it to undo) in the Journal.` });
             runAudit();
         } catch (error) {
             setCierreMsg({ type: 'error', text: error.message });
@@ -126,12 +130,12 @@ export default function Summary({ ejercicio, onVerCuenta }) {
     };
 
     const handleCerrar = async () => {
-        if (!confirm(`Se creará el asiento de cierre a 31/12/${ejercicio.anyo}: salda TODAS las cuentas y deja los balances a cero. ¿Continuar?`)) return;
+        if (!confirm(`This posts the second closing entry dated 12/31/${ejercicio.anyo}: it closes Income Summary and Dividends to Retained Earnings. Continue?`)) return;
         setWorking(true);
         setCierreMsg({ type: '', text: '' });
         try {
             await crearAsientoCierre(ejercicio.id, ejercicio.anyo);
-            setCierreMsg({ type: 'success', text: 'Asiento de cierre creado. Es normal que ahora los balances queden a cero: el ejercicio está cerrado. Bórralo en el Diario si quieres deshacerlo.' });
+            setCierreMsg({ type: 'success', text: 'Closing entry posted. Income Summary and Dividends are now closed to Retained Earnings. Delete it in the Journal if you want to undo it.' });
             runAudit();
         } catch (error) {
             setCierreMsg({ type: 'error', text: error.message });
@@ -140,11 +144,11 @@ export default function Summary({ ejercicio, onVerCuenta }) {
         }
     };
 
-    if (loading) return <div style={{ padding: '2rem' }}>Analizando contabilidad...</div>;
+    if (loading) return <div style={{ padding: '2rem' }}>Analyzing the books...</div>;
 
     if (!audit) return null;
 
-    const fmtFecha = (iso) => iso ? new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    const fmtFecha = (iso) => iso ? new Date(iso).toLocaleString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
     return (
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -153,35 +157,35 @@ export default function Summary({ ejercicio, onVerCuenta }) {
             {ejercicio.entrega && (
                 <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid var(--color-primary)' }}>
                     <h4 className="title-md" style={{ marginBottom: '1rem' }}>
-                        📋 Ficha de entrega (ejercicio importado)
+                        📋 Submission details (imported file)
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', fontSize: '0.875rem' }}>
                         <div>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Nombre original</p>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Original name</p>
                             <p style={{ fontWeight: 500 }}>{ejercicio.entrega.nombre_original || '—'}</p>
                         </div>
                         <div>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Huella del contenido</p>
-                            <p style={{ fontWeight: 500, fontFamily: 'monospace' }}>{ejercicio.entrega.huella || 'sin huella (export antiguo)'}</p>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Content fingerprint</p>
+                            <p style={{ fontWeight: 500, fontFamily: 'monospace' }}>{ejercicio.entrega.huella || 'no fingerprint (old export)'}</p>
                         </div>
                         <div>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Instalación de origen</p>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Source installation</p>
                             <p style={{ fontWeight: 500, fontFamily: 'monospace' }}>{ejercicio.entrega.instalacion_id ? ejercicio.entrega.instalacion_id.slice(0, 8) : '—'}</p>
                         </div>
                         <div>
-                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Exportado el</p>
+                            <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Exported on</p>
                             <p style={{ fontWeight: 500 }}>{fmtFecha(ejercicio.entrega.fecha_exportacion)}</p>
                         </div>
                         {audit.redaccion && (
                             <div>
-                                <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Asientos redactados entre</p>
-                                <p style={{ fontWeight: 500 }}>{fmtFecha(audit.redaccion.desde)} y {fmtFecha(audit.redaccion.hasta)}</p>
+                                <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.25rem' }}>Entries written between</p>
+                                <p style={{ fontWeight: 500 }}>{fmtFecha(audit.redaccion.desde)} and {fmtFecha(audit.redaccion.hasta)}</p>
                             </div>
                         )}
                     </div>
                     <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                        Dos entregas con la misma <strong>huella</strong> son archivos con idéntico contenido contable (copia directa).
-                        La misma <strong>instalación de origen</strong> indica que salieron del mismo navegador.
+                        Two submissions with the same <strong>fingerprint</strong> have identical accounting content (a direct copy).
+                        The same <strong>source installation</strong> means they came from the same browser.
                     </p>
                 </div>
             )}
@@ -190,107 +194,107 @@ export default function Summary({ ejercicio, onVerCuenta }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
 
                 <StatusCard
-                    title="Integridad del Diario"
+                    title="Journal Integrity"
                     status={audit.descuadreDiario < 0.01 ? 'ok' : 'error'}
-                    value={audit.descuadreDiario < 0.01 ? 'Cuadrado' : `Descuadre: ${formatCurrency(audit.descuadreDiario)}`}
-                    description="Suma del Debe vs Suma del Haber en todos los asientos."
+                    value={audit.descuadreDiario < 0.01 ? 'In balance' : `Out of balance: ${formatCurrency(audit.descuadreDiario)}`}
+                    description="Total debits vs total credits across all entries."
                 />
 
                 <StatusCard
-                    title="Coherencia Tesorería (57)"
+                    title="Negative Cash (10xx)"
                     status={audit.tesoreriaRoja.length === 0 ? 'ok' : 'warning'}
-                    value={audit.tesoreriaRoja.length === 0 ? 'Correcto' : `${audit.tesoreriaRoja.length} cta(s) en negativo`}
-                    description={audit.tesoreriaRoja.length > 0 ? 'Revisar en el Mayor:' : "No hay saldos acreedores en Caja/Bancos."}
+                    value={audit.tesoreriaRoja.length === 0 ? 'OK' : `${audit.tesoreriaRoja.length} account(s) negative`}
+                    description={audit.tesoreriaRoja.length > 0 ? 'Review in the Ledger:' : "No credit balances in Cash."}
                     accounts={audit.tesoreriaRoja.map(c => c.codigo)}
                     onAccountClick={onVerCuenta}
                 />
 
                 <StatusCard
-                    title="Ecuación Contable"
+                    title="Accounting Equation"
                     status={audit.ecuacionDiff < 0.01 ? 'ok' : 'warning'}
-                    value={audit.ecuacionDiff < 0.01 ? 'Cuadrada' : 'Posible Error'}
-                    description="Activo = Pasivo + Neto + Resultado"
+                    value={audit.ecuacionDiff < 0.01 ? 'Balanced' : 'Possible Error'}
+                    description="Assets = Liabilities + Equity"
                 />
 
                 <StatusCard
-                    title="Saldos Coherentes"
+                    title="Natural Balances"
                     status={audit.saldosAntinaturales.length === 0 ? 'ok' : 'warning'}
-                    value={audit.saldosAntinaturales.length === 0 ? 'Correcto' : `${audit.saldosAntinaturales.length} cta(s) extrañas`}
-                    description={audit.saldosAntinaturales.length > 0 ? 'Revisar en el Mayor:' : "Clientes y Proveedores con signo correcto."}
+                    value={audit.saldosAntinaturales.length === 0 ? 'OK' : `${audit.saldosAntinaturales.length} odd account(s)`}
+                    description={audit.saldosAntinaturales.length > 0 ? 'Review in the Ledger:' : "Receivables and payables have the expected sign."}
                     accounts={audit.saldosAntinaturales.map(c => c.codigo)}
                     onAccountClick={onVerCuenta}
                 />
 
                 <StatusCard
-                    title="Amortización Inmovilizado"
+                    title="Depreciation"
                     status={!audit.olvidoAmortizacion ? 'ok' : 'error'}
-                    value={!audit.olvidoAmortizacion ? 'Correcto' : 'Falta Amortizar'}
+                    value={!audit.olvidoAmortizacion ? 'OK' : 'Missing depreciation'}
                     description={!audit.olvidoAmortizacion
-                        ? "Se detectan gastos de amortización o no hay activos."
-                        : "Tienes activos (G2) pero no has amortizado (68)."}
+                        ? "Depreciation expense found, or no depreciable assets."
+                        : "You have depreciable PP&E (1510-1545) but no Depreciation Expense (6030)."}
                 />
 
                 <StatusCard
-                    title="Signo de Gastos e Ingresos"
+                    title="Revenue / Expense Sign"
                     status={audit.gastosIngresosInvertidos.length === 0 ? 'ok' : 'error'}
-                    value={audit.gastosIngresosInvertidos.length === 0 ? 'Correcto' : `${audit.gastosIngresosInvertidos.length} cta(s) invertidas`}
+                    value={audit.gastosIngresosInvertidos.length === 0 ? 'OK' : `${audit.gastosIngresosInvertidos.length} inverted account(s)`}
                     description={audit.gastosIngresosInvertidos.length > 0
-                        ? 'Gasto al Haber o ingreso al Debe: suele ser un asiento al revés.'
-                        : 'Gastos con saldo deudor e ingresos con saldo acreedor.'}
+                        ? 'Expense credited or revenue debited: usually a reversed entry.'
+                        : 'Expenses carry debit balances and revenues carry credit balances.'}
                     accounts={audit.gastosIngresosInvertidos.map(c => c.codigo)}
                     onAccountClick={onVerCuenta}
                 />
 
                 <StatusCard
-                    title="Ciclo Contable"
+                    title="Accounting Cycle"
                     status={audit.tieneApertura && audit.tieneCierre ? 'ok' : 'warning'}
                     value={
-                        audit.tieneApertura && audit.tieneCierre ? 'Completo' :
-                            audit.tieneApertura ? 'Falta cierre' :
-                                audit.tieneCierre ? 'Falta apertura' : 'Sin apertura ni cierre'
+                        audit.tieneApertura && audit.tieneCierre ? 'Complete' :
+                            audit.tieneApertura ? 'Missing closing' :
+                                audit.tieneCierre ? 'Missing opening' : 'No opening or closing'
                     }
-                    description={'Se busca "apertura" en el primer asiento y "cierre" en el último. Puede no aplicar a tu ejercicio.'}
+                    description={'Looks for "opening" in the first entry and "closing" in the last. May not apply to your period.'}
                 />
 
                 <StatusCard
-                    title="Variación de Existencias"
+                    title="Cost of Goods Sold"
                     status={!audit.olvidoVariacion ? 'ok' : 'error'}
-                    value={!audit.olvidoVariacion ? 'Correcto' : 'Falta Variación'}
+                    value={!audit.olvidoVariacion ? 'OK' : 'Missing COGS'}
                     description={!audit.olvidoVariacion
-                        ? "Se detecta variación o no hay existencias."
-                        : "Tienes existencias (G3) pero no has regularizado (61/71)."}
+                        ? "Cost of sales found, or no inventory."
+                        : "You have inventory (1300) but no cost of sales (5xxx) recorded."}
                 />
             </div>
 
-            {/* SECCIÓN 2: DATOS CLAVE PARA LA NOTA */}
-            <h4 className="title-md" style={{ marginBottom: '1rem' }}>Cifras Clave del Ejercicio</h4>
+            {/* SECTION 2: KEY FIGURES */}
+            <h4 className="title-md" style={{ marginBottom: '1rem' }}>Key Figures for the Period</h4>
             <div className="card" style={{ marginBottom: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem', textAlign: 'center' }}>
                 <div>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Resultado (Beneficio/Pérdida)</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Net Income (Profit/Loss)</p>
                     <p style={{ fontSize: '1.75rem', fontWeight: 'bold', color: audit.resultado >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
                         {formatCurrency(audit.resultado)}
                     </p>
                 </div>
                 <div style={{ borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)' }}>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Total Activo</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Total Assets</p>
                     <p style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>
                         {formatCurrency(audit.totalActivo)}
                     </p>
                 </div>
                 <div>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Nº de Asientos</p>
+                    <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}># of Entries</p>
                     <p style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>
                         {audit.numAsientos}
                     </p>
                 </div>
             </div>
 
-            {/* SECCIÓN 3: ASISTENTE DE CIERRE */}
-            <h4 className="title-md" style={{ marginBottom: '1rem' }}>Cierre del Ejercicio (Asistente)</h4>
+            {/* SECTION 3: CLOSING ASSISTANT */}
+            <h4 className="title-md" style={{ marginBottom: '1rem' }}>Closing the Books (Assistant)</h4>
             <div className="card" style={{ marginBottom: '2rem' }}>
                 <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
-                    Genera los asientos reales del ciclo contable a 31/12/{ejercicio.anyo}, en dos pasos y en este orden.
-                    Ambos aparecen en el Libro Diario como asientos normales: puedes revisarlos y borrarlos para deshacer.
+                    Posts the real closing entries dated 12/31/{ejercicio.anyo}, in two steps and in this order.
+                    Both appear in the Journal as normal entries: you can review them and delete them to undo.
                 </p>
 
                 {cierreMsg.text && (
@@ -315,7 +319,7 @@ export default function Summary({ ejercicio, onVerCuenta }) {
                         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                     >
                         <Scale size={18} />
-                        1. Asiento de Regularización (6/7 → 129)
+                        1. Close to Income Summary (Rev/Exp → 3900)
                     </button>
                     <button
                         className="btn"
@@ -324,7 +328,7 @@ export default function Summary({ ejercicio, onVerCuenta }) {
                         style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'white', border: '1px solid var(--color-border)' }}
                     >
                         <Lock size={18} />
-                        2. Asiento de Cierre
+                        2. Close to Retained Earnings
                     </button>
                 </div>
             </div>
@@ -364,7 +368,7 @@ function StatusCard({ title, status, value, description, accounts = [], onAccoun
                         <button
                             key={codigo}
                             onClick={() => onAccountClick && onAccountClick(codigo)}
-                            title={`Ver el mayor de la cuenta ${codigo}`}
+                            title={`View the ledger for account ${codigo}`}
                             style={{
                                 fontFamily: 'monospace',
                                 fontSize: '0.8rem',

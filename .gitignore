@@ -22,6 +22,9 @@ dist-ssr
 dist copia
 *.local
 
+# Packaged extension (Chrome Web Store upload artifact)
+*.zip
+
 # Editor
 .vscode/*
 !.vscode/extensions.json

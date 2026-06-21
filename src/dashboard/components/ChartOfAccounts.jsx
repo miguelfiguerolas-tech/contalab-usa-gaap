@@ -36,54 +36,54 @@ export default function ChartOfAccounts({ ejercicio }) {
         setError('');
         setSuccess('');
 
-        // Validaciones
+        // Validation
         if (!formData.codigo || !formData.nombre) {
-            setError('Todos los campos son obligatorios.');
+            setError('All fields are required.');
             return;
         }
 
-        // Entre 3 y 6 dígitos: el PGC precargado usa códigos de 3-4 dígitos
-        // y las subcuentas personalizadas suelen ser de 5-6.
+        // Between 3 and 6 digits: the default chart uses 4-digit codes and
+        // custom sub-accounts are usually 5-6 digits.
         if (!/^\d{3,6}$/.test(formData.codigo)) {
-            setError('El código de cuenta debe tener entre 3 y 6 dígitos numéricos.');
+            setError('The account code must be 3 to 6 numeric digits.');
             return;
         }
 
-        // Verificar duplicados (excluyendo la propia cuenta si estamos editando)
+        // Check for duplicates (excluding the account itself when editing)
         const duplicado = cuentas.find(c => c.codigo === formData.codigo && c.id !== editingId);
         if (duplicado) {
-            setError('Ya existe una cuenta con este código.');
+            setError('An account with this code already exists.');
             return;
         }
 
         if (editingId) {
-            // Confirmación para editar
+            // Confirm before editing
             setConfirmModal({
                 isOpen: true,
-                title: 'Confirmar Modificación',
-                message: '¿Estás seguro de modificar la cuenta? Si has cambiado el código, se actualizarán automáticamente todos los asientos asociados.',
+                title: 'Confirm change',
+                message: 'Are you sure you want to edit this account? If you changed the code, all related entries will be updated automatically.',
                 onConfirm: async () => {
                     try {
                         await updateCuenta(editingId, formData.codigo, formData.nombre);
-                        setSuccess(`Cuenta ${formData.codigo} actualizada correctamente.`);
+                        setSuccess(`Account ${formData.codigo} updated successfully.`);
                         setFormData({ codigo: '', nombre: '' });
                         setEditingId(null);
                         loadCuentas();
                     } catch (err) {
                         console.error(err);
-                        setError(err.message || 'Error al guardar la cuenta.');
+                        setError(err.message || 'Error saving the account.');
                     }
                 }
             });
         } else {
             try {
                 await addCuenta(ejercicio.id, formData.codigo, formData.nombre);
-                setSuccess(`Cuenta ${formData.codigo} creada correctamente.`);
+                setSuccess(`Account ${formData.codigo} created successfully.`);
                 setFormData({ codigo: '', nombre: '' });
                 loadCuentas();
             } catch (err) {
                 console.error(err);
-                setError(err.message || 'Error al guardar la cuenta.');
+                setError(err.message || 'Error saving the account.');
             }
         }
     };
@@ -105,17 +105,17 @@ export default function ChartOfAccounts({ ejercicio }) {
     const handleDelete = (id, codigo) => {
         setConfirmModal({
             isOpen: true,
-            title: 'Confirmar Eliminación',
-            message: `¿Estás seguro de eliminar la cuenta ${codigo}? Esta acción no se puede deshacer.`,
+            title: 'Confirm deletion',
+            message: `Are you sure you want to delete account ${codigo}? This action cannot be undone.`,
             onConfirm: async () => {
                 try {
                     await deleteCuenta(id);
-                    setSuccess(`Cuenta ${codigo} eliminada correctamente.`);
+                    setSuccess(`Account ${codigo} deleted successfully.`);
                     loadCuentas();
                     if (editingId === id) handleCancelEdit();
                 } catch (err) {
                     console.error(err);
-                    setError(err.message); // Mostrar error si tiene asientos asociados
+                    setError(err.message); // Show error if it has related entries
                 }
             }
         });
@@ -140,12 +140,12 @@ export default function ChartOfAccounts({ ejercicio }) {
             {/* Panel Izquierdo: Lista de Cuentas */}
             <div className="card" style={{ flex: 2, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
                 <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 className="title-md">Plan de Cuentas ({cuentas.length})</h3>
+                    <h3 className="title-md">Chart of Accounts ({cuentas.length})</h3>
                     <div style={{ position: 'relative', width: '250px' }}>
                         <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                         <input
                             type="text"
-                            placeholder="Buscar cuenta..."
+                            placeholder="Search account..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{
@@ -166,9 +166,9 @@ export default function ChartOfAccounts({ ejercicio }) {
                     <table className="table-std">
                         <thead style={{ position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
                             <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '0.75rem 1.5rem', width: '20%' }}>Código</th>
-                                <th style={{ padding: '0.75rem 1.5rem', width: '60%' }}>Nombre de la Cuenta</th>
-                                <th style={{ padding: '0.75rem 1.5rem', width: '20%', textAlign: 'right' }}>Acciones</th>
+                                <th style={{ padding: '0.75rem 1.5rem', width: '20%' }}>Code</th>
+                                <th style={{ padding: '0.75rem 1.5rem', width: '60%' }}>Account Name</th>
+                                <th style={{ padding: '0.75rem 1.5rem', width: '20%', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -185,14 +185,14 @@ export default function ChartOfAccounts({ ejercicio }) {
                                             <button
                                                 onClick={() => handleEdit(c)}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}
-                                                title="Editar"
+                                                title="Edit"
                                             >
                                                 <Edit2 size={16} />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(c.id, c.codigo)}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
-                                                title="Eliminar"
+                                                title="Delete"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -203,7 +203,7 @@ export default function ChartOfAccounts({ ejercicio }) {
                             {filteredCuentas.length === 0 && (
                                 <tr>
                                     <td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                        No se encontraron cuentas.
+                                        No accounts found.
                                     </td>
                                 </tr>
                             )}
@@ -218,7 +218,7 @@ export default function ChartOfAccounts({ ejercicio }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h3 className="title-md" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: editingId ? 'var(--color-primary)' : 'inherit' }}>
                             {editingId ? <Edit2 size={20} /> : <Plus size={20} />}
-                            {editingId ? 'Editar Cuenta' : 'Nueva Cuenta'}
+                            {editingId ? 'Edit Account' : 'New Account'}
                         </h3>
                         {editingId && (
                             <button onClick={handleCancelEdit} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
@@ -242,7 +242,7 @@ export default function ChartOfAccounts({ ejercicio }) {
 
                     <form onSubmit={handleSubmit}>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Código (3 a 6 dígitos)</label>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Code (3 to 6 digits)</label>
                             <input
                                 type="text"
                                 value={formData.codigo}
@@ -251,21 +251,21 @@ export default function ChartOfAccounts({ ejercicio }) {
                                     const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                                     setFormData({ ...formData, codigo: val });
                                 }}
-                                placeholder="Ej: 430001"
+                                placeholder="e.g. 110001"
                                 style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontFamily: 'monospace', fontSize: '1rem' }}
                             />
                             <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-                                {editingId ? 'Si cambias el código, se actualizarán todos los asientos.' : 'Debe pertenecer a un grupo existente (ej. 430...).'}
+                                {editingId ? 'If you change the code, all entries will be updated.' : 'It should belong to an existing group (e.g. 1100...).'}
                             </p>
                         </div>
 
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Nombre de la Cuenta</label>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Account Name</label>
                             <input
                                 type="text"
                                 value={formData.nombre}
                                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                                placeholder="Ej: Clientes (Empresa X)"
+                                placeholder="e.g. Accounts Receivable (Customer X)"
                                 style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
                             />
                         </div>
@@ -278,7 +278,7 @@ export default function ChartOfAccounts({ ejercicio }) {
                                     className="btn"
                                     style={{ flex: 1, justifyContent: 'center', background: '#f1f5f9', color: 'var(--color-text-main)' }}
                                 >
-                                    Cancelar
+                                    Cancel
                                 </button>
                             )}
                             <button
@@ -287,7 +287,7 @@ export default function ChartOfAccounts({ ejercicio }) {
                                 style={{ flex: 1, justifyContent: 'center' }}
                                 disabled={!formData.codigo || !formData.nombre || formData.codigo.length < 3}
                             >
-                                {editingId ? 'Guardar Cambios' : 'Crear Cuenta'}
+                                {editingId ? 'Save Changes' : 'Create Account'}
                             </button>
                         </div>
                     </form>
@@ -295,8 +295,8 @@ export default function ChartOfAccounts({ ejercicio }) {
 
                 {!editingId && (
                     <div style={{ marginTop: '1.5rem', padding: '1rem', background: '#f8fafc', borderRadius: 'var(--radius-md)', border: '1px dashed var(--color-border)', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                        <p style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>💡 Consejo:</p>
-                        <p>Las cuentas se ordenan automáticamente. Si creas la cuenta <strong>430001</strong>, aparecerá justo debajo de la <strong>430000</strong> en todos los listados.</p>
+                        <p style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>💡 Tip:</p>
+                        <p>Accounts are sorted automatically. If you create account <strong>110001</strong>, it will appear right below <strong>1100</strong> in every list.</p>
                     </div>
                 )}
             </div>

@@ -1,18 +1,18 @@
-// Formato español: miles con punto y decimales con coma (1.234,56).
-// useGrouping 'always' fuerza el punto también en miles de 4 cifras (1.000),
-// que es lo habitual en contabilidad aunque la RAE lo omita.
+// US format: thousands grouped with a comma, decimals with a dot (1,234.56).
+// useGrouping 'always' also groups four-digit thousands (1,000), the usual
+// convention in accounting.
 const makeFormatter = (options) => {
     try {
-        return new Intl.NumberFormat('es-ES', { ...options, useGrouping: 'always' });
+        return new Intl.NumberFormat('en-US', { ...options, useGrouping: 'always' });
     } catch (e) {
-        // Navegadores antiguos sin useGrouping 'always'
-        return new Intl.NumberFormat('es-ES', options);
+        // Older browsers without useGrouping 'always'
+        return new Intl.NumberFormat('en-US', options);
     }
 };
 
 const CURRENCY = makeFormatter({
     style: 'currency',
-    currency: 'EUR',
+    currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
 });
@@ -27,7 +27,7 @@ export const formatCurrency = (amount) => {
     return CURRENCY.format(Number(amount));
 };
 
-// Como formatCurrency pero sin el símbolo €, para columnas Debe/Haber
+// Like formatCurrency but without the $ symbol, for the Debit/Credit columns
 export const formatNumber = (amount) => {
     if (amount === undefined || amount === null || amount === '') return '-';
     return NUMBER.format(Number(amount));

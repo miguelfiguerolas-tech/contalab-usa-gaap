@@ -1,10 +1,10 @@
 {
     "manifest_version": 3,
-    "name": "ContaLab - Contabilidad para Estudiantes",
+    "name": "ContaLab - Accounting for Students",
     "version": "1.1.0",
-    "description": "Gestión contable completa: Diario, Mayor y Balances. Diseñado para estudiantes.",
+    "description": "Complete accounting workspace: Journal, Ledger and Financial Statements (US GAAP). Built for students.",
     "action": {
-        "default_title": "Abrir ContaLab"
+        "default_title": "Open ContaLab"
     },
     "background": {
         "service_worker": "background.js"

@@ -1,28 +1,42 @@
 import { createAsiento, getCuentas } from './index';
 import { getSumasYSaldos } from './balances';
+import {
+    isRevenue,
+    isExpense,
+    INCOME_SUMMARY,
+    RETAINED_EARNINGS,
+    DIVIDENDS
+} from './accountTypes';
 
-// Umbral para ignorar restos de redondeo
+// Threshold to ignore rounding leftovers.
 const EPSILON = 0.005;
 
-// Lógica pura: construye los apuntes del asiento de regularización.
-// Salda todas las cuentas de los grupos 6 y 7 contra la 129:
-// gastos (saldo deudor) al Haber, ingresos (saldo acreedor) al Debe,
-// y la 129 recoge la diferencia (beneficio al Haber, pérdida al Debe).
+// Descriptions used for the two closing journal entries (the audit detects a
+// closing entry by the word "closing", so keep it in the text).
+export const CLOSING_STEP1_DESC = 'Closing entry — revenues and expenses to Income Summary';
+export const CLOSING_STEP2_DESC = 'Closing entry — Income Summary and Dividends to Retained Earnings';
+
+// Pure logic — STEP 1: close every revenue and expense account to Income Summary.
+// Revenues carry a credit balance (debit them); expenses carry a debit balance
+// (credit them); Income Summary takes the difference (credit on a profit, debit
+// on a loss).
 export const buildApuntesRegularizacion = (sumas) => {
-    const grupos67 = sumas.filter(c =>
-        (c.codigo.startsWith('6') || c.codigo.startsWith('7')) &&
+    const temporales = sumas.filter(c =>
+        (isRevenue(c.codigo) || isExpense(c.codigo)) &&
         Math.abs(c.saldoNeto) > EPSILON
     );
 
-    if (grupos67.length === 0) return null;
+    if (temporales.length === 0) return null;
 
     const apuntes = [];
-    let resultado = 0; // Ingresos - Gastos
+    let resultado = 0; // revenue - expenses = net income
 
-    grupos67.forEach(c => {
+    temporales.forEach(c => {
         if (c.saldoNeto > 0) {
+            // expense (debit balance) -> credit it to zero it out
             apuntes.push({ cuenta_codigo: c.codigo, debe: 0, haber: c.saldoNeto });
         } else {
+            // revenue (credit balance) -> debit it to zero it out
             apuntes.push({ cuenta_codigo: c.codigo, debe: -c.saldoNeto, haber: 0 });
         }
         resultado -= c.saldoNeto;
@@ -30,31 +44,48 @@ export const buildApuntesRegularizacion = (sumas) => {
 
     if (Math.abs(resultado) > EPSILON) {
         apuntes.push(resultado > 0
-            ? { cuenta_codigo: '129', debe: 0, haber: resultado }
-            : { cuenta_codigo: '129', debe: -resultado, haber: 0 });
+            ? { cuenta_codigo: INCOME_SUMMARY, debe: 0, haber: resultado }   // profit -> credit Income Summary
+            : { cuenta_codigo: INCOME_SUMMARY, debe: -resultado, haber: 0 }); // loss -> debit Income Summary
     }
 
     return { apuntes, resultado };
 };
 
-// Lógica pura: construye los apuntes del asiento de cierre.
-// Salda todas las cuentas con saldo (los grupos 6 y 7 deben estar ya
-// regularizados). Tras contabilizarlo, todos los saldos quedan a cero.
+// Pure logic — STEP 2: close Income Summary and Dividends to Retained Earnings.
+// Revenue/expense accounts must already be closed (step 1). Retained Earnings
+// absorbs the net (increases on a profit, decreases by the dividends declared).
 export const buildApuntesCierre = (sumas) => {
-    const pendientes67 = sumas.filter(c =>
-        (c.codigo.startsWith('6') || c.codigo.startsWith('7')) &&
+    const pendientes = sumas.filter(c =>
+        (isRevenue(c.codigo) || isExpense(c.codigo)) &&
         Math.abs(c.saldoNeto) > EPSILON
     );
-    if (pendientes67.length > 0) {
-        return { error: 'Hay saldos sin regularizar en los grupos 6 y 7. Haz primero el asiento de regularización.' };
+    if (pendientes.length > 0) {
+        return { error: 'Revenue and expense accounts are still open. Post the Income Summary closing entry first.' };
     }
 
-    const conSaldo = sumas.filter(c => Math.abs(c.saldoNeto) > EPSILON);
-    if (conSaldo.length === 0) return null;
+    const aCerrar = sumas.filter(c =>
+        (c.codigo === INCOME_SUMMARY || c.codigo === DIVIDENDS) &&
+        Math.abs(c.saldoNeto) > EPSILON
+    );
+    if (aCerrar.length === 0) return null;
 
-    const apuntes = conSaldo.map(c => c.saldoNeto > 0
-        ? { cuenta_codigo: c.codigo, debe: 0, haber: c.saldoNeto }
-        : { cuenta_codigo: c.codigo, debe: -c.saldoNeto, haber: 0 });
+    const apuntes = [];
+    let reNeto = 0; // net saldoNeto moved onto Retained Earnings
+
+    aCerrar.forEach(c => {
+        if (c.saldoNeto > 0) {
+            apuntes.push({ cuenta_codigo: c.codigo, debe: 0, haber: c.saldoNeto });
+        } else {
+            apuntes.push({ cuenta_codigo: c.codigo, debe: -c.saldoNeto, haber: 0 });
+        }
+        reNeto += c.saldoNeto;
+    });
+
+    if (Math.abs(reNeto) > EPSILON) {
+        apuntes.push(reNeto > 0
+            ? { cuenta_codigo: RETAINED_EARNINGS, debe: reNeto, haber: 0 }
+            : { cuenta_codigo: RETAINED_EARNINGS, debe: 0, haber: -reNeto });
+    }
 
     return { apuntes };
 };
@@ -64,17 +95,17 @@ export const crearAsientoRegularizacion = async (ejercicioId, anyo) => {
     const construido = buildApuntesRegularizacion(sumas);
 
     if (!construido) {
-        throw new Error('No hay saldos en los grupos 6 y 7 que regularizar.');
+        throw new Error('There are no open revenue or expense accounts to close.');
     }
 
-    // La 129 debe existir en el plan del ejercicio (viene en el PGC precargado)
+    // Income Summary must exist in the chart (it ships with the default chart).
     const cuentas = await getCuentas(ejercicioId);
-    if (!cuentas.some(c => c.codigo === '129')) {
-        throw new Error('No existe la cuenta 129 (Resultado del ejercicio) en el plan. Créala en Plan de Cuentas.');
+    if (!cuentas.some(c => c.codigo === INCOME_SUMMARY)) {
+        throw new Error(`The Income Summary account (${INCOME_SUMMARY}) is missing. Add it in the Chart of Accounts.`);
     }
 
     const fecha = `${anyo}-12-31`;
-    await createAsiento(ejercicioId, fecha, 'Asiento de regularización', construido.apuntes);
+    await createAsiento(ejercicioId, fecha, CLOSING_STEP1_DESC, construido.apuntes);
     return construido.resultado;
 };
 
@@ -83,12 +114,18 @@ export const crearAsientoCierre = async (ejercicioId, anyo) => {
     const construido = buildApuntesCierre(sumas);
 
     if (!construido) {
-        throw new Error('No hay saldos que cerrar.');
+        throw new Error('Nothing left to close to Retained Earnings.');
     }
     if (construido.error) {
         throw new Error(construido.error);
     }
 
+    // Retained Earnings must exist in the chart.
+    const cuentas = await getCuentas(ejercicioId);
+    if (!cuentas.some(c => c.codigo === RETAINED_EARNINGS)) {
+        throw new Error(`The Retained Earnings account (${RETAINED_EARNINGS}) is missing. Add it in the Chart of Accounts.`);
+    }
+
     const fecha = `${anyo}-12-31`;
-    return createAsiento(ejercicioId, fecha, 'Asiento de cierre', construido.apuntes);
+    return createAsiento(ejercicioId, fecha, CLOSING_STEP2_DESC, construido.apuntes);
 };

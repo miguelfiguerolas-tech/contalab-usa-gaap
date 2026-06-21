@@ -65,15 +65,15 @@ export const importEjercicio = async (jsonString) => {
     try {
         backup = JSON.parse(jsonString);
     } catch (e) {
-        throw new Error('El archivo no es un JSON válido.');
+        throw new Error('The file is not valid JSON.');
     }
 
     if (!backup.data || !backup.data.ejercicio) {
-        throw new Error('Formato de archivo incorrecto.');
+        throw new Error('Invalid file format.');
     }
 
     if (backup.version && backup.version > 1) {
-        throw new Error('Este archivo proviene de una versión más reciente de ContaLab. Actualiza la extensión para importarlo.');
+        throw new Error('This file comes from a newer version of ContaLab. Update the extension to import it.');
     }
 
     const db = await initDB();
@@ -84,7 +84,7 @@ export const importEjercicio = async (jsonString) => {
         // Usamos el nombre original + (Importado) para distinguir
         const oldEj = backup.data.ejercicio;
         const newEjId = await tx.objectStore('ejercicios').add({
-            nombre: `${oldEj.nombre} (Importado)`,
+            nombre: `${oldEj.nombre} (Imported)`,
             anyo: oldEj.anyo,
             fecha_creacion: new Date().toISOString(),
             // Ficha de entrega: metadatos del archivo importado, visibles en Auditoría
@@ -155,6 +155,6 @@ export const importEjercicio = async (jsonString) => {
         } catch (e) {
             // La transacción puede haberse abortado ya por el propio error
         }
-        throw new Error('Error al guardar los datos importados.');
+        throw new Error('Error saving the imported data.');
     }
 };

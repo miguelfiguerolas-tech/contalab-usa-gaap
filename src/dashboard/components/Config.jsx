@@ -25,10 +25,10 @@ export default function Config({ ejercicio, onImportSuccess }) {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            setMessage({ type: 'success', text: 'Ejercicio exportado correctamente.' });
+            setMessage({ type: 'success', text: 'Period exported successfully.' });
         } catch (error) {
             console.error(error);
-            setMessage({ type: 'error', text: 'Error al exportar.' });
+            setMessage({ type: 'error', text: 'Error exporting.' });
         } finally {
             setExporting(false);
         }
@@ -43,11 +43,11 @@ export default function Config({ ejercicio, onImportSuccess }) {
         reader.onload = async (evt) => {
             try {
                 await importEjercicio(evt.target.result);
-                setMessage({ type: 'success', text: 'Ejercicio importado correctamente. Ábrelo desde el menú de selección: en la pestaña Auditoría verás la ficha de entrega y los criterios de corrección.' });
+                setMessage({ type: 'success', text: 'Period imported successfully. Open it from the selection menu: the Review tab shows the submission details and grading checks.' });
                 if (onImportSuccess) onImportSuccess();
             } catch (error) {
                 console.error(error);
-                setMessage({ type: 'error', text: 'Error al importar: ' + error.message });
+                setMessage({ type: 'error', text: 'Import error: ' + error.message });
             } finally {
                 setImporting(false);
                 e.target.value = null; // Reset input
@@ -77,7 +77,7 @@ export default function Config({ ejercicio, onImportSuccess }) {
             {/* Sección: Gestión de Datos */}
             <div className="card" style={{ marginBottom: '2rem' }}>
                 <h3 className="title-md" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>
-                    Copias de Seguridad
+                    Backups
                 </h3>
                 <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                     <button
@@ -87,19 +87,19 @@ export default function Config({ ejercicio, onImportSuccess }) {
                         style={{ gap: '0.5rem' }}
                     >
                         <Download size={18} />
-                        {exporting ? 'Exportando...' : 'Exportar Ejercicio Actual'}
+                        {exporting ? 'Exporting...' : 'Export Current Period'}
                     </button>
 
                     <div style={{ height: '40px', width: '1px', background: 'var(--color-border)' }}></div>
 
                     <label className="btn" style={{ gap: '0.5rem', background: 'white', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
                         <Upload size={18} />
-                        {importing ? 'Importando...' : 'Importar Ejercicio'}
+                        {importing ? 'Importing...' : 'Import Period'}
                         <input type="file" accept=".json" onChange={handleImport} disabled={importing} style={{ display: 'none' }} />
                     </label>
                 </div>
                 <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                    Exporta tus datos para guardarlos o entregarlos. Importa un archivo .json para restaurar un ejercicio.
+                    Export your data to keep or submit it. Import a .json file to restore a period.
                 </p>
             </div>
 
@@ -107,14 +107,14 @@ export default function Config({ ejercicio, onImportSuccess }) {
             {/* Sección: Acerca de */}
             <div className="card">
                 <h3 className="title-md" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.5rem' }}>
-                    Acerca de ContaLab
+                    About ContaLab
                 </h3>
                 <div style={{ fontSize: '0.9rem', color: 'var(--color-text-main)' }}>
                     <p style={{ marginBottom: '0.5rem' }}>
-                        <strong>Desarrollado por:</strong> Miguel Figuerola
+                        <strong>Developed by:</strong> Miguel Figuerola
                     </p>
                     <p style={{ marginBottom: '1rem' }}>
-                        Una herramienta educativa diseñada para simplificar el aprendizaje de la contabilidad.
+                        An educational tool built to make learning accounting simpler.
                     </p>
 
                     <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
@@ -136,7 +136,7 @@ export default function Config({ ejercicio, onImportSuccess }) {
                                 border: '1px solid #f59e0b'
                             }}
                         >
-                            ☕ Invítame a un café
+                            ☕ Buy me a coffee
                         </a>
                         <a
                             href={STORE_REVIEW_URL}
@@ -145,14 +145,14 @@ export default function Config({ ejercicio, onImportSuccess }) {
                             className="btn btn-primary"
                             style={{ textDecoration: 'none', fontSize: '0.9rem' }}
                         >
-                            ⭐ Valorar en la Web Store
+                            ⭐ Review on the Web Store
                         </a>
                         <a
                             href={FEEDBACK_MAILTO}
                             className="btn btn-secondary"
                             style={{ textDecoration: 'none', fontSize: '0.9rem' }}
                         >
-                            ✉️ Enviar sugerencias
+                            ✉️ Send feedback
                         </a>
                         <a
                             href={GITHUB_URL}
@@ -161,12 +161,12 @@ export default function Config({ ejercicio, onImportSuccess }) {
                             className="btn btn-secondary"
                             style={{ textDecoration: 'none', fontSize: '0.9rem' }}
                         >
-                            🐙 Código en GitHub
+                            🐙 Source on GitHub
                         </a>
                     </div>
                     <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
-                        ContaLab es gratuito. Si te resulta útil en clase, una valoración de 5 estrellas y tus
-                        sugerencias de mejora son la mejor forma de apoyarlo.
+                        ContaLab is free. If it helps in class, a 5-star review and your
+                        suggestions are the best way to support it.
                     </p>
 
                     <div style={{
@@ -180,9 +180,9 @@ export default function Config({ ejercicio, onImportSuccess }) {
                     }}>
                         <div style={{ fontSize: '1.5rem' }}>⚖️</div>
                         <div>
-                            <p style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Licencia MIT</p>
+                            <p style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>MIT License</p>
                             <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                                Software libre y de código abierto: puedes usarlo, distribuirlo y modificarlo libremente, conservando el aviso de autoría original.
+                                Free and open-source software: you may use, distribute and modify it freely, keeping the original copyright notice.
                             </p>
                         </div>
                     </div>

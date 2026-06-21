@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Wallet, Calendar, Activity } from 'lucide-react';
 import { getSumasYSaldos, getCuentaResultados } from '../../db/balances';
 import { getAsientos } from '../../db';
+import { isRevenue, isExpense, isCash } from '../../db/accountTypes';
 import { formatCurrency } from '../../utils/format';
 import { STORE_REVIEW_URL, FEEDBACK_MAILTO } from '../../utils/links';
 
@@ -41,9 +42,9 @@ export default function DashboardHome({ ejercicio }) {
             let totalTesoreria = 0;
 
             sumas.forEach(c => {
-                if (c.codigo.startsWith('7')) totalIngresos += c.saldoAcreedor - c.saldoDeudor; // G7 usually Acreedor
-                if (c.codigo.startsWith('6')) totalGastos += c.saldoDeudor - c.saldoAcreedor;   // G6 usually Deudor
-                if (c.codigo.startsWith('57')) totalTesoreria += c.saldoDeudor - c.saldoAcreedor; // Tesoreria usually Deudor
+                if (isRevenue(c.codigo)) totalIngresos += c.saldoAcreedor - c.saldoDeudor; // revenue: credit
+                if (isExpense(c.codigo)) totalGastos += c.saldoDeudor - c.saldoAcreedor;    // expense: debit
+                if (isCash(c.codigo)) totalTesoreria += c.saldoDeudor - c.saldoAcreedor;    // cash: debit
             });
 
             const resultado = totalIngresos - totalGastos;
@@ -55,10 +56,10 @@ export default function DashboardHome({ ejercicio }) {
                 tesoreria: totalTesoreria
             });
 
-            // 2. Gastos Distribution (Pie Chart)
-            // Filter Group 6 accounts with balance > 0
+            // 2. Expense distribution
+            // Filter expense accounts with a positive (debit) balance
             const gastosCuentas = sumas
-                .filter(c => c.codigo.startsWith('6') && (c.saldoDeudor - c.saldoAcreedor) > 0)
+                .filter(c => isExpense(c.codigo) && (c.saldoDeudor - c.saldoAcreedor) > 0)
                 .map(c => ({
                     name: c.nombre,
                     value: c.saldoDeudor - c.saldoAcreedor
@@ -70,7 +71,7 @@ export default function DashboardHome({ ejercicio }) {
             if (gastosCuentas.length > 5) {
                 const top5 = gastosCuentas.slice(0, 5);
                 const others = gastosCuentas.slice(5).reduce((acc, curr) => acc + curr.value, 0);
-                finalGastos = [...top5, { name: 'Otros', value: others }];
+                finalGastos = [...top5, { name: 'Other', value: others }];
             } else {
                 finalGastos = gastosCuentas;
             }
@@ -86,7 +87,7 @@ export default function DashboardHome({ ejercicio }) {
         }
     };
 
-    if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Cargando panel de control...</div>;
+    if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading dashboard...</div>;
 
     // Al valorar o enviar sugerencias, no volver a pedir nunca
     const handleReviewDone = () => {
@@ -102,7 +103,7 @@ export default function DashboardHome({ ejercicio }) {
                 <div style={{ textAlign: 'right', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
                     <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
                         <Calendar size={16} />
-                        {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                 </div>
             </div>
@@ -120,10 +121,10 @@ export default function DashboardHome({ ejercicio }) {
                     flexWrap: 'wrap'
                 }}>
                     <div style={{ flex: 1, minWidth: '260px' }}>
-                        <p style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>¿Te está siendo útil ContaLab? ⭐</p>
+                        <p style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Is ContaLab helping you? ⭐</p>
                         <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                            Una valoración de 5 estrellas en la Chrome Web Store ayuda a que llegue a más estudiantes.
-                            Y si algo se puede mejorar, cuéntamelo.
+                            A 5-star review on the Chrome Web Store helps it reach more students.
+                            And if something could be better, let me know.
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -135,7 +136,7 @@ export default function DashboardHome({ ejercicio }) {
                             className="btn btn-primary"
                             style={{ textDecoration: 'none', fontSize: '0.875rem' }}
                         >
-                            ⭐ Valorar con 5 estrellas
+                            ⭐ Leave a 5-star review
                         </a>
                         <a
                             href={FEEDBACK_MAILTO}
@@ -143,14 +144,14 @@ export default function DashboardHome({ ejercicio }) {
                             className="btn btn-secondary"
                             style={{ textDecoration: 'none', fontSize: '0.875rem' }}
                         >
-                            Enviar sugerencias
+                            Send feedback
                         </a>
                         <button
                             className="btn"
                             onClick={() => setShowReview(false)}
                             style={{ background: 'transparent', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}
                         >
-                            Ahora no
+                            Not now
                         </button>
                     </div>
                 </div>
@@ -164,28 +165,28 @@ export default function DashboardHome({ ejercicio }) {
                 marginBottom: '2rem'
             }}>
                 <KpiCard
-                    title="Ingresos Totales"
+                    title="Total Revenue"
                     amount={kpis.ingresos}
                     icon={<TrendingUp size={24} color="#059669" />}
                     bg="#ecfdf5"
                     border="#a7f3d0"
                 />
                 <KpiCard
-                    title="Gastos Totales"
+                    title="Total Expenses"
                     amount={kpis.gastos}
                     icon={<TrendingDown size={24} color="#e11d48" />}
                     bg="#fff1f2"
                     border="#fecdd3"
                 />
                 <KpiCard
-                    title="Resultado Neto"
+                    title="Net Income"
                     amount={kpis.resultado}
                     icon={<DollarSign size={24} color="#2563eb" />}
                     bg="#eff6ff"
                     border="#bfdbfe"
                 />
                 <KpiCard
-                    title="Tesorería"
+                    title="Cash"
                     amount={kpis.tesoreria}
                     icon={<Wallet size={24} color="#7c3aed" />}
                     bg="#f5f3ff"
@@ -197,7 +198,7 @@ export default function DashboardHome({ ejercicio }) {
             <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
                 <h3 className="title-md" style={{ marginBottom: '1.5rem', color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Activity size={20} />
-                    Ranking de Gastos Principales
+                    Top Expenses
                 </h3>
 
                 {gastosData.length > 0 ? (
@@ -228,7 +229,7 @@ export default function DashboardHome({ ejercicio }) {
                                         }} />
                                     </div>
                                     <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                                        {percentage.toFixed(1)}% del total
+                                        {percentage.toFixed(1)}% of total
                                     </div>
                                 </div>
                             );
@@ -236,7 +237,7 @@ export default function DashboardHome({ ejercicio }) {
                     </div>
                 ) : (
                     <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                        <p>No hay gastos registrados todavía.</p>
+                        <p>No expenses recorded yet.</p>
                     </div>
                 )}
             </div>

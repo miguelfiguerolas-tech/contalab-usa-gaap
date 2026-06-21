@@ -1,6 +1,7 @@
 import { initDB } from './index';
 import { getCuentas } from './index';
-import { BALANCE_STRUCTURE, PYG_STRUCTURE } from './pgc_structure';
+import { BALANCE_STRUCTURE, PYG_STRUCTURE } from './statements_us';
+import { isExpense, isRevenue, RETAINED_EARNINGS } from './accountTypes';
 
 // Lógica pura (sin BD) separada para poder testearla de forma aislada.
 
@@ -119,43 +120,44 @@ export const computeBalanceSituacion = (balanceListInput) => {
     // Copia para no mutar la lista del llamante al inyectar el resultado en la 129
     const balanceList = balanceListInput.map(acc => ({ ...acc }));
 
-    // --- SIMULACIÓN DE CIERRE ---
-    // Resultado = Ingresos (G7) - Gastos (G6). En términos de saldoNeto (Debe - Haber):
-    // Resultado = - (SaldoNetoG7 + SaldoNetoG6)
+    // --- SIMULATED CLOSING ---
+    // Net income = Revenue - Expenses. In terms of saldoNeto (Debit - Credit):
+    // Net income = - (saldoNeto of revenue + expense accounts).
     let resultadoEjercicio = 0;
     balanceList.forEach(acc => {
-        if (acc.codigo.startsWith('6') || acc.codigo.startsWith('7')) {
+        if (isExpense(acc.codigo) || isRevenue(acc.codigo)) {
             resultadoEjercicio -= acc.saldoNeto;
         }
     });
 
-    // Inyectar el resultado en la cuenta 129 (Resultado del ejercicio).
-    // Beneficio -> Haber (saldoNeto negativo); Pérdida -> Debe (saldoNeto positivo).
-    const cuenta129 = balanceList.find(acc => acc.codigo === '129');
-    if (cuenta129) {
-        cuenta129.saldoNeto -= resultadoEjercicio;
-        if (cuenta129.saldoNeto > 0) {
-            cuenta129.saldoDeudor = cuenta129.saldoNeto;
-            cuenta129.saldoAcreedor = 0;
+    // Fold the net income into Retained Earnings so the balance sheet balances
+    // before the closing entries are posted (US GAAP: net income flows to RE).
+    // Profit -> credit (saldoNeto negative); loss -> debit (saldoNeto positive).
+    const retainedEarnings = balanceList.find(acc => acc.codigo === RETAINED_EARNINGS);
+    if (retainedEarnings) {
+        retainedEarnings.saldoNeto -= resultadoEjercicio;
+        if (retainedEarnings.saldoNeto > 0) {
+            retainedEarnings.saldoDeudor = retainedEarnings.saldoNeto;
+            retainedEarnings.saldoAcreedor = 0;
         } else {
-            cuenta129.saldoDeudor = 0;
-            cuenta129.saldoAcreedor = Math.abs(cuenta129.saldoNeto);
+            retainedEarnings.saldoDeudor = 0;
+            retainedEarnings.saldoAcreedor = Math.abs(retainedEarnings.saldoNeto);
         }
     } else {
         balanceList.push({
-            codigo: '129',
-            nombre: 'Resultado del ejercicio (Simulado)',
+            codigo: RETAINED_EARNINGS,
+            nombre: 'Retained Earnings (simulated)',
             sumaDebe: 0,
             sumaHaber: 0,
-            saldoDeudor: resultadoEjercicio < 0 ? Math.abs(resultadoEjercicio) : 0, // Pérdida es Debe
-            saldoAcreedor: resultadoEjercicio > 0 ? resultadoEjercicio : 0, // Beneficio es Haber
+            saldoDeudor: resultadoEjercicio < 0 ? Math.abs(resultadoEjercicio) : 0, // loss is a debit
+            saldoAcreedor: resultadoEjercicio > 0 ? resultadoEjercicio : 0, // profit is a credit
             saldoNeto: -resultadoEjercicio
         });
     }
-    // -----------------------------
+    // -------------------------
 
-    // Asignación única cuenta -> epígrafe sobre TODA la estructura (activo y pasivo
-    // a la vez, para que una cuenta nunca aparezca en ambos lados).
+    // One account -> one line across the WHOLE structure (assets and
+    // liabilities/equity together) so a code never shows up on both sides.
     const leaves = collectLeaves([
         ...BALANCE_STRUCTURE.activo,
         ...BALANCE_STRUCTURE.patrimonio_pasivo
@@ -165,8 +167,8 @@ export const computeBalanceSituacion = (balanceListInput) => {
 
     const activo = BALANCE_STRUCTURE.activo.map(node => populateNode(node, sums));
 
-    // En Patrimonio/Pasivo el saldo natural es acreedor (saldoNeto negativo):
-    // invertimos el signo para mostrarlo en positivo.
+    // Liabilities and equity carry a natural credit balance (saldoNeto negative):
+    // flip the sign so they display as positive amounts.
     const patrimonioPasivo = BALANCE_STRUCTURE.patrimonio_pasivo.map(node => {
         const populated = populateNode(node, sums);
         const invertSign = (n) => {
@@ -186,8 +188,8 @@ export const getBalanceSituacion = async (ejercicioId) => {
 };
 
 export const computeCuentaResultados = (balanceList) => {
-    // Asignación única también en PyG: evita que una cuenta entre en dos líneas
-    // (ej. la 630 coincide con '630' de Impuestos y con '63' de Otros gastos).
+    // Single assignment in the income statement too: keeps an account out of two
+    // lines (longest-prefix wins, e.g. '6200' Interest Expense over a '60' bucket).
     const rows = PYG_STRUCTURE.filter(row => !row.isTotal);
     const assignment = assignAccountsToLeaves(balanceList, rows);
     const sums = sumByLeaf(balanceList, assignment);
@@ -195,9 +197,9 @@ export const computeCuentaResultados = (balanceList) => {
     const calculatedRows = {};
 
     rows.forEach(row => {
-        // saldoNeto es (Debe - Haber); el impacto en el resultado es el opuesto:
-        // el Haber (ingresos) aumenta el beneficio y el Debe (gastos) lo reduce.
-        const impact = -(sums[row.id] || 0) || 0; // el último '|| 0' evita el -0
+        // saldoNeto is (Debit - Credit); the impact on income is the opposite:
+        // credits (revenue) raise income, debits (expenses) reduce it.
+        const impact = -(sums[row.id] || 0) || 0; // trailing '|| 0' avoids -0
         calculatedRows[row.id] = { ...row, amount: impact };
     });
 
