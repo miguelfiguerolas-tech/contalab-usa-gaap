@@ -1,10 +1,11 @@
 {
     "manifest_version": 3,
-    "name": "ContaLab - Accounting for Students",
+    "name": "ContaLab USA - Accounting for Students (US GAAP)",
+    "short_name": "ContaLab",
     "version": "1.1.0",
     "description": "Complete accounting workspace: Journal, Ledger and Financial Statements (US GAAP). Built for students.",
     "action": {
-        "default_title": "Open ContaLab"
+        "default_title": "Open ContaLab US GAAP"
     },
     "background": {
         "service_worker": "background.js"

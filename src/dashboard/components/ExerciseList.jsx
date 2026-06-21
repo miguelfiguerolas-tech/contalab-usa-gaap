@@ -55,7 +55,7 @@ export default function ExerciseList({ onSelect }) {
             padding: '0 1rem'
         }}>
             <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>ContaLab</h1>
+                <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>ContaLab US GAAP</h1>
                 <p style={{ fontSize: '1.125rem', color: 'var(--color-text-muted)' }}>Select a period to start working</p>
             </div>
 
