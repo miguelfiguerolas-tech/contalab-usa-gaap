@@ -24,8 +24,8 @@ to us or to any third party.
 
 ## Permissions
 
-- **`storage` / `unlimitedStorage`** — used solely to save your accounting data
-  locally in the browser so your work persists between sessions. No data is uploaded.
+- **`unlimitedStorage`** — used solely to let your accounting data persist locally
+  in the browser (IndexedDB) without storage-quota limits. No data is uploaded.
 
 ## Data you export
 
