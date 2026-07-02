@@ -1,55 +1,61 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ArrowRight, FileText, Table2, Columns2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, FileText, Table2, Columns2 } from 'lucide-react';
 import { getCuentas } from '../../db';
 import { getMayor } from '../../db/mayor';
-import { formatNumber } from '../../utils/format';
-import { exportMayorToPDF } from '../../utils/pdfExport';
+import { formatNumber, formatDate } from '../../utils/format';
+import { EPSILON } from '../../utils/money';
 import GroupFilter from './GroupFilter';
 
 export default function Ledger({ ejercicio, initialCuenta }) {
     const [cuentas, setCuentas] = useState([]);
     const [selectedCuenta, setSelectedCuenta] = useState('');
     const [movimientos, setMovimientos] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [grupoFiltro, setGrupoFiltro] = useState('');
     const [vistaT, setVistaT] = useState(false); // false = statement, true = T-account
 
-    useEffect(() => {
-        loadCuentas();
-    }, [ejercicio.id]);
+    const loadCuentas = useCallback(async () => {
+        try {
+            const list = await getCuentas(ejercicio.id);
+            // Ordenar por código
+            list.sort((a, b) => a.codigo.localeCompare(b.codigo));
+            setCuentas(list);
+            // Si venimos de Auditoría con una cuenta concreta, seleccionarla
+            if (initialCuenta && list.some(c => c.codigo === initialCuenta)) {
+                setSelectedCuenta(initialCuenta);
+            } else if (list.length > 0) {
+                setSelectedCuenta(list[0].codigo);
+            }
+        } catch (error) {
+            console.error('Error loading accounts:', error);
+        }
+    }, [ejercicio.id, initialCuenta]);
 
-    useEffect(() => {
-        if (selectedCuenta) {
-            loadMayor(selectedCuenta);
-        } else {
+    const loadMayor = useCallback(async (codigo) => {
+        if (!codigo) {
             setMovimientos([]);
+            return;
         }
-    }, [selectedCuenta]);
-
-    const loadCuentas = async () => {
-        const list = await getCuentas(ejercicio.id);
-        // Ordenar por código
-        list.sort((a, b) => a.codigo.localeCompare(b.codigo));
-        setCuentas(list);
-        // Si venimos de Auditoría con una cuenta concreta, seleccionarla
-        if (initialCuenta && list.some(c => c.codigo === initialCuenta)) {
-            setSelectedCuenta(initialCuenta);
-        } else if (list.length > 0) {
-            setSelectedCuenta(list[0].codigo);
-        }
-    };
-
-    const loadMayor = async (codigo) => {
-        setLoading(true);
         try {
             const data = await getMayor(ejercicio.id, codigo);
             setMovimientos(data);
         } catch (error) {
             console.error(error);
-        } finally {
-            setLoading(false);
         }
+    }, [ejercicio.id]);
+
+    useEffect(() => {
+        loadCuentas();
+    }, [loadCuentas]);
+
+    useEffect(() => {
+        loadMayor(selectedCuenta);
+    }, [selectedCuenta, loadMayor]);
+
+    // Import dinámico: jsPDF pesa ~300 kB y solo hace falta al exportar
+    const handleExportPDF = async () => {
+        const { exportMayorToPDF } = await import('../../utils/pdfExport');
+        exportMayorToPDF(movimientos, currentCuenta, ejercicio);
     };
 
     const currentCuenta = cuentas.find(c => c.codigo === selectedCuenta);
@@ -72,12 +78,8 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                             placeholder="Search account..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.5rem 0.5rem 0.5rem 2rem',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--color-border)'
-                            }}
+                            className="input"
+                            style={{ paddingLeft: '2rem' }}
                         />
                     </div>
                     <div style={{ marginTop: '0.6rem' }}>
@@ -130,7 +132,7 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                                 </button>
                                 <button
                                     className="btn"
-                                    onClick={() => exportMayorToPDF(movimientos, currentCuenta, ejercicio)}
+                                    onClick={handleExportPDF}
                                     disabled={movimientos.length === 0}
                                     title="Export this account's ledger to PDF"
                                     style={{ background: 'white', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#dc2626' }}
@@ -166,7 +168,7 @@ export default function Ledger({ ejercicio, initialCuenta }) {
                                     ) : (
                                         movimientos.map((mov, idx) => (
                                             <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '0.75rem 1rem' }}>{new Date(mov.fecha).toLocaleDateString('en-US')}</td>
+                                                <td style={{ padding: '0.75rem 1rem' }}>{formatDate(mov.fecha)}</td>
                                                 <td style={{ padding: '0.75rem 1rem' }}>
                                                     <span style={{
                                                         background: '#f1f5f9',
@@ -277,7 +279,7 @@ function TAccount({ movimientos, cuenta }) {
                 }}>
                     Balance: <strong>{formatNumber(Math.abs(saldo))}</strong>{' '}
                     <span style={{ color: 'var(--color-text-muted)' }}>
-                        {saldo > 0.004 ? '(Debit)' : saldo < -0.004 ? '(Credit)' : '(Zero)'}
+                        {saldo > EPSILON ? '(Debit)' : saldo < -EPSILON ? '(Credit)' : '(Zero)'}
                     </span>
                 </div>
             </div>

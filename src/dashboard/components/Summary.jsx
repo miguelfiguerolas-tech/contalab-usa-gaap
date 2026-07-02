@@ -1,22 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { CheckCircle, AlertTriangle, XCircle, Scale, Lock } from 'lucide-react';
 import { getAsientos } from '../../db';
 import { getSumasYSaldos, getBalanceSituacion, getCuentaResultados } from '../../db/balances';
 import { crearAsientoRegularizacion, crearAsientoCierre } from '../../db/cierre';
 import { isCash, isExpense, isRevenue } from '../../db/accountTypes';
 import { formatCurrency } from '../../utils/format';
+import { EPSILON } from '../../utils/money';
+import ConfirmModal from './ConfirmModal';
 
 export default function Summary({ ejercicio, onVerCuenta }) {
     const [audit, setAudit] = useState(null);
     const [loading, setLoading] = useState(true);
     const [cierreMsg, setCierreMsg] = useState({ type: '', text: '' });
     const [working, setWorking] = useState(false);
+    const [confirmModal, setConfirmModal] = useState(null); // { title, message, onConfirm }
 
-    useEffect(() => {
-        runAudit();
-    }, [ejercicio.id]);
-
-    const runAudit = async () => {
+    const runAudit = useCallback(async () => {
         setLoading(true);
         try {
             const [asientos, sumas, balance, pyg] = await Promise.all([
@@ -112,10 +111,13 @@ export default function Summary({ ejercicio, onVerCuenta }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [ejercicio.id]);
 
-    const handleRegularizar = async () => {
-        if (!confirm(`This posts the first closing entry dated 12/31/${ejercicio.anyo}: it closes every revenue and expense account to Income Summary (3900). Continue?`)) return;
+    useEffect(() => {
+        runAudit();
+    }, [runAudit]);
+
+    const doRegularizar = async () => {
         setWorking(true);
         setCierreMsg({ type: '', text: '' });
         try {
@@ -129,8 +131,7 @@ export default function Summary({ ejercicio, onVerCuenta }) {
         }
     };
 
-    const handleCerrar = async () => {
-        if (!confirm(`This posts the second closing entry dated 12/31/${ejercicio.anyo}: it closes Income Summary and Dividends to Retained Earnings. Continue?`)) return;
+    const doCerrar = async () => {
         setWorking(true);
         setCierreMsg({ type: '', text: '' });
         try {
@@ -144,6 +145,22 @@ export default function Summary({ ejercicio, onVerCuenta }) {
         }
     };
 
+    const handleRegularizar = () => {
+        setConfirmModal({
+            title: 'Close to Income Summary',
+            message: `This posts the first closing entry dated 12/31/${ejercicio.anyo}: it closes every revenue and expense account to Income Summary (3900). Continue?`,
+            onConfirm: doRegularizar
+        });
+    };
+
+    const handleCerrar = () => {
+        setConfirmModal({
+            title: 'Close to Retained Earnings',
+            message: `This posts the second closing entry dated 12/31/${ejercicio.anyo}: it closes Income Summary and Dividends to Retained Earnings. Continue?`,
+            onConfirm: doCerrar
+        });
+    };
+
     if (loading) return <div style={{ padding: '2rem' }}>Analyzing the books...</div>;
 
     if (!audit) return null;
@@ -152,6 +169,14 @@ export default function Summary({ ejercicio, onVerCuenta }) {
 
     return (
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+
+            <ConfirmModal
+                isOpen={confirmModal !== null}
+                title={confirmModal?.title}
+                message={confirmModal?.message}
+                onConfirm={confirmModal?.onConfirm}
+                onClose={() => setConfirmModal(null)}
+            />
 
             {/* FICHA DE ENTREGA: solo para ejercicios importados */}
             {ejercicio.entrega && (
@@ -195,8 +220,8 @@ export default function Summary({ ejercicio, onVerCuenta }) {
 
                 <StatusCard
                     title="Journal Integrity"
-                    status={audit.descuadreDiario < 0.01 ? 'ok' : 'error'}
-                    value={audit.descuadreDiario < 0.01 ? 'In balance' : `Out of balance: ${formatCurrency(audit.descuadreDiario)}`}
+                    status={audit.descuadreDiario < EPSILON ? 'ok' : 'error'}
+                    value={audit.descuadreDiario < EPSILON ? 'In balance' : `Out of balance: ${formatCurrency(audit.descuadreDiario)}`}
                     description="Total debits vs total credits across all entries."
                 />
 
@@ -211,8 +236,8 @@ export default function Summary({ ejercicio, onVerCuenta }) {
 
                 <StatusCard
                     title="Accounting Equation"
-                    status={audit.ecuacionDiff < 0.01 ? 'ok' : 'warning'}
-                    value={audit.ecuacionDiff < 0.01 ? 'Balanced' : 'Possible Error'}
+                    status={audit.ecuacionDiff < EPSILON ? 'ok' : 'warning'}
+                    value={audit.ecuacionDiff < EPSILON ? 'Balanced' : 'Possible Error'}
                     description="Assets = Liabilities + Equity"
                 />
 
@@ -298,15 +323,7 @@ export default function Summary({ ejercicio, onVerCuenta }) {
                 </p>
 
                 {cierreMsg.text && (
-                    <div style={{
-                        padding: '0.75rem',
-                        marginBottom: '1rem',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.875rem',
-                        background: cierreMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
-                        color: cierreMsg.type === 'success' ? '#166534' : '#991b1b',
-                        border: `1px solid ${cierreMsg.type === 'success' ? '#bbf7d0' : '#fecaca'}`
-                    }}>
+                    <div className={`alert alert-${cierreMsg.type}`} style={{ marginBottom: '1rem' }}>
                         {cierreMsg.text}
                     </div>
                 )}

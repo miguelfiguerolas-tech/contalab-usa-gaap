@@ -2,6 +2,7 @@ import { initDB } from './index';
 import { getCuentas } from './index';
 import { BALANCE_STRUCTURE, PYG_STRUCTURE } from './statements_us';
 import { isExpense, isRevenue, RETAINED_EARNINGS } from './accountTypes';
+import { round2 } from '../utils/money';
 
 // Lógica pura (sin BD) separada para poder testearla de forma aislada.
 
@@ -26,12 +27,16 @@ export const buildSumasYSaldos = (cuentas, apuntes) => {
     const balance = Object.values(balanceMap)
         .filter(item => item.sumaDebe !== 0 || item.sumaHaber !== 0) // Filtrar cuentas sin movimientos
         .map(item => {
-            const saldo = item.sumaDebe - item.sumaHaber;
+            // Redondear al céntimo: la acumulación en float arrastra errores
+            // (0.1 + 0.2 !== 0.3) que harían aparecer descuadres fantasma.
+            const sumaDebe = round2(item.sumaDebe);
+            const sumaHaber = round2(item.sumaHaber);
+            const saldo = round2(sumaDebe - sumaHaber);
             return {
                 codigo: item.cuenta.codigo,
                 nombre: item.cuenta.nombre,
-                sumaDebe: item.sumaDebe,
-                sumaHaber: item.sumaHaber,
+                sumaDebe,
+                sumaHaber,
                 saldoDeudor: saldo > 0 ? saldo : 0,
                 saldoAcreedor: saldo < 0 ? Math.abs(saldo) : 0,
                 saldoNeto: saldo // Positivo = Deudor, Negativo = Acreedor

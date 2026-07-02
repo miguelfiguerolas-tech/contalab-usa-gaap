@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Download, Upload } from 'lucide-react';
-import { exportEjercicio, importEjercicio } from '../../db/backup';
+import { importEjercicio } from '../../db/backup';
+import { downloadEjercicioJSON } from '../../utils/download';
 import { BMC_URL, STORE_REVIEW_URL, FEEDBACK_MAILTO, GITHUB_URL } from '../../utils/links';
 
-export default function Config({ ejercicio, onImportSuccess }) {
+export default function Config({ ejercicio }) {
     // Estado para Export/Import
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
@@ -12,19 +13,7 @@ export default function Config({ ejercicio, onImportSuccess }) {
     const handleExport = async () => {
         setExporting(true);
         try {
-            const json = await exportEjercicio(ejercicio.id);
-
-            // Crear blob y descargar
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `contalab_${ejercicio.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
+            await downloadEjercicioJSON(ejercicio);
             setMessage({ type: 'success', text: 'Period exported successfully.' });
         } catch (error) {
             console.error(error);
@@ -44,7 +33,6 @@ export default function Config({ ejercicio, onImportSuccess }) {
             try {
                 await importEjercicio(evt.target.result);
                 setMessage({ type: 'success', text: 'Period imported successfully. Open it from the selection menu: the Review tab shows the submission details and grading checks.' });
-                if (onImportSuccess) onImportSuccess();
             } catch (error) {
                 console.error(error);
                 setMessage({ type: 'error', text: 'Import error: ' + error.message });
@@ -62,14 +50,7 @@ export default function Config({ ejercicio, onImportSuccess }) {
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
 
             {message.text && (
-                <div style={{
-                    padding: '1rem',
-                    marginBottom: '2rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: message.type === 'success' ? '#f0fdf4' : '#fef2f2',
-                    color: message.type === 'success' ? '#166534' : '#991b1b',
-                    border: `1px solid ${message.type === 'success' ? '#bbf7d0' : '#fecaca'}`
-                }}>
+                <div className={`alert alert-${message.type}`} style={{ marginBottom: '2rem' }}>
                     {message.text}
                 </div>
             )}

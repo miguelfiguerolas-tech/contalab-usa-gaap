@@ -3,19 +3,13 @@ import { initDB } from './index';
 export const getMayor = async (ejercicioId, cuentaCodigo) => {
     const db = await initDB();
 
-    // 1. Obtener todos los apuntes de esa cuenta en ese ejercicio
-    // Usamos el índice compuesto 'ejercicio_cuenta' que creamos en initDB
-    // Nota: IDB KeyRange para índices compuestos puede ser tricky.
-    // Si no funciona directo, filtramos en memoria (para estudiantes es ok).
-
-    // Opción A: getAllFromIndex con IDBKeyRange.only([ejercicioId, cuentaCodigo])
-    // Esto requiere que el índice esté configurado exactamente así.
-
-    // Vamos a usar la opción segura: traer todos los apuntes del ejercicio y filtrar.
-    // (Optimización futura: usar índice específico)
-    const todosApuntes = await db.getAllFromIndex('apuntes', 'ejercicio_id', ejercicioId);
-
-    const apuntesCuenta = todosApuntes.filter(a => a.cuenta_codigo === cuentaCodigo);
+    // 1. Apuntes de esa cuenta en ese ejercicio, directos del índice compuesto
+    // ['ejercicio_id', 'cuenta_codigo'] definido en initDB.
+    const apuntesCuenta = await db.getAllFromIndex(
+        'apuntes',
+        'ejercicio_cuenta',
+        [ejercicioId, cuentaCodigo]
+    );
 
     // 2. Necesitamos la fecha y el número de asiento para ordenar
     // Hacemos un fetch de los asientos relacionados
@@ -42,8 +36,8 @@ export const getMayor = async (ejercicioId, cuentaCodigo) => {
         };
     });
 
-    // Ordenar por fecha y número
-    movimientos.sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || a.asiento_numero - b.asiento_numero);
+    // Ordenar por fecha y número (las fechas YYYY-MM-DD ordenan bien como string)
+    movimientos.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.asiento_numero - b.asiento_numero);
 
     // 4. Calcular saldos acumulados
     let saldo = 0;

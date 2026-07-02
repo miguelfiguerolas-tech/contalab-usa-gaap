@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, Wallet, Calendar, Activity } from 'lucide-react';
-import { getSumasYSaldos, getCuentaResultados } from '../../db/balances';
+import { getSumasYSaldos } from '../../db/balances';
 import { getAsientos } from '../../db';
 import { isRevenue, isExpense, isCash } from '../../db/accountTypes';
 import { formatCurrency } from '../../utils/format';
@@ -19,24 +19,15 @@ export default function DashboardHome({ ejercicio }) {
     const [loading, setLoading] = useState(true);
     const [showReview, setShowReview] = useState(false);
 
-    useEffect(() => {
-        loadData();
-    }, [ejercicio.id]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const [sumas, pyg, asientos] = await Promise.all([
+            const [sumas, asientos] = await Promise.all([
                 getSumasYSaldos(ejercicio.id),
-                getCuentaResultados(ejercicio.id), // This returns {ingresos: [], gastos: []} rows from structure
                 getAsientos(ejercicio.id)
             ]);
 
-            // 1. KPIs
-            // We need raw totals, pyg returns structured rows.
-            // Let's use sumas for raw calculation to be safe or parse pyg.
-            // Actually, let's use sumas for flexibility.
-
+            // 1. KPIs a partir del balance de sumas y saldos
             let totalIngresos = 0;
             let totalGastos = 0;
             let totalTesoreria = 0;
@@ -85,7 +76,11 @@ export default function DashboardHome({ ejercicio }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [ejercicio.id]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading dashboard...</div>;
 

@@ -64,16 +64,34 @@ export const importEjercicio = async (jsonString) => {
     let backup;
     try {
         backup = JSON.parse(jsonString);
-    } catch (e) {
+    } catch {
         throw new Error('The file is not valid JSON.');
     }
 
-    if (!backup.data || !backup.data.ejercicio) {
-        throw new Error('Invalid file format.');
-    }
-
+    // Validar la forma del archivo ANTES de abrir la transacción, con mensajes
+    // concretos: un archivo truncado o de otra app no debe acabar en el
+    // genérico "Error saving the imported data".
     if (backup.version && backup.version > 1) {
         throw new Error('This file comes from a newer version of ContaLab. Update the extension to import it.');
+    }
+
+    const data = backup.data;
+    if (!data || typeof data !== 'object') {
+        throw new Error('Invalid file: it does not look like a ContaLab export (missing "data" section).');
+    }
+    if (!data.ejercicio || typeof data.ejercicio !== 'object' || typeof data.ejercicio.nombre !== 'string') {
+        throw new Error('Invalid file: missing period information.');
+    }
+    if (!Array.isArray(data.cuentas) || !Array.isArray(data.asientos) || !Array.isArray(data.apuntes)) {
+        throw new Error('Invalid file: accounts, entries or entry lines are missing or malformed.');
+    }
+    const cuentaInvalida = data.cuentas.find(c => !c || typeof c.codigo !== 'string' || typeof c.nombre !== 'string');
+    if (cuentaInvalida !== undefined) {
+        throw new Error('Invalid file: an account is missing its code or name.');
+    }
+    const apunteInvalido = data.apuntes.find(ap => !ap || typeof ap.cuenta_codigo !== 'string' || ap.asiento_id === undefined);
+    if (apunteInvalido !== undefined) {
+        throw new Error('Invalid file: an entry line is missing its account code or entry reference.');
     }
 
     const db = await initDB();
@@ -152,7 +170,7 @@ export const importEjercicio = async (jsonString) => {
         console.error("Error en importación:", error);
         try {
             tx.abort();
-        } catch (e) {
+        } catch {
             // La transacción puede haberse abortado ya por el propio error
         }
         throw new Error('Error saving the imported data.');

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, FolderOpen, Trash2, Calendar } from 'lucide-react';
 import { getEjercicios, createEjercicio, deleteEjercicio } from '../../db';
+import ConfirmModal from './ConfirmModal';
 
 export default function ExerciseList({ onSelect }) {
     const [ejercicios, setEjercicios] = useState([]);
@@ -8,12 +9,9 @@ export default function ExerciseList({ onSelect }) {
     const [newNombre, setNewNombre] = useState('');
     const [newAnyo, setNewAnyo] = useState(new Date().getFullYear());
     const [loading, setLoading] = useState(true);
+    const [deleteTarget, setDeleteTarget] = useState(null); // ejercicio pendiente de confirmar borrado
 
-    useEffect(() => {
-        loadEjercicios();
-    }, []);
-
-    const loadEjercicios = async () => {
+    const loadEjercicios = useCallback(async () => {
         try {
             const list = await getEjercicios();
             setEjercicios(list);
@@ -22,7 +20,11 @@ export default function ExerciseList({ onSelect }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadEjercicios();
+    }, [loadEjercicios]);
 
     const handleCreate = async (e) => {
         e.preventDefault();
@@ -38,12 +40,9 @@ export default function ExerciseList({ onSelect }) {
         }
     };
 
-    const handleDelete = async (id, e) => {
+    const handleDelete = (ejercicio, e) => {
         e.stopPropagation();
-        if (confirm('Are you sure you want to delete this period? All data will be lost.')) {
-            await deleteEjercicio(id);
-            loadEjercicios();
-        }
+        setDeleteTarget(ejercicio);
     };
 
     if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
@@ -54,6 +53,17 @@ export default function ExerciseList({ onSelect }) {
             margin: '4rem auto',
             padding: '0 1rem'
         }}>
+            <ConfirmModal
+                isOpen={deleteTarget !== null}
+                title="Delete period"
+                message={deleteTarget ? `Delete "${deleteTarget.nombre}"? All its accounts and entries will be lost. This action cannot be undone.` : ''}
+                onConfirm={async () => {
+                    await deleteEjercicio(deleteTarget.id);
+                    loadEjercicios();
+                }}
+                onClose={() => setDeleteTarget(null)}
+            />
+
             <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                 <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--color-primary)' }}>ContaLab US GAAP</h1>
                 <p style={{ fontSize: '1.125rem', color: 'var(--color-text-muted)' }}>Select a period to start working</p>
@@ -127,7 +137,7 @@ export default function ExerciseList({ onSelect }) {
                                 <FolderOpen size={20} />
                             </div>
                             <button
-                                onClick={(e) => handleDelete(ej.id, e)}
+                                onClick={(e) => handleDelete(ej, e)}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -158,36 +168,26 @@ export default function ExerciseList({ onSelect }) {
                         <h2 style={{ marginBottom: '1.5rem' }}>New Period</h2>
                         <form onSubmit={handleCreate}>
                             <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Company / Period Name</label>
+                                <label className="label">Company / Period Name</label>
                                 <input
                                     type="text"
                                     autoFocus
                                     value={newNombre}
                                     onChange={(e) => setNewNombre(e.target.value)}
                                     placeholder="e.g. My Company Inc."
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        borderRadius: 'var(--radius-md)',
-                                        border: '1px solid var(--color-border)',
-                                        fontSize: '1rem'
-                                    }}
+                                    className="input"
+                                    style={{ padding: '0.75rem', fontSize: '1rem' }}
                                     required
                                 />
                             </div>
                             <div style={{ marginBottom: '1.5rem' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>Fiscal Year</label>
+                                <label className="label">Fiscal Year</label>
                                 <input
                                     type="number"
                                     value={newAnyo}
                                     onChange={(e) => setNewAnyo(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        borderRadius: 'var(--radius-md)',
-                                        border: '1px solid var(--color-border)',
-                                        fontSize: '1rem'
-                                    }}
+                                    className="input"
+                                    style={{ padding: '0.75rem', fontSize: '1rem' }}
                                     required
                                 />
                             </div>

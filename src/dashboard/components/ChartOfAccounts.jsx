@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, AlertCircle, Edit2, Save, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Trash2, AlertCircle, Edit2, X } from 'lucide-react';
 import { getCuentas, addCuenta, updateCuenta, deleteCuenta } from '../../db';
 import ConfirmModal from './ConfirmModal';
 import GroupFilter from './GroupFilter';
@@ -21,15 +21,19 @@ export default function ChartOfAccounts({ ejercicio }) {
         onConfirm: null
     });
 
-    useEffect(() => {
-        loadCuentas();
+    const loadCuentas = useCallback(async () => {
+        try {
+            const list = await getCuentas(ejercicio.id);
+            list.sort((a, b) => a.codigo.localeCompare(b.codigo));
+            setCuentas(list);
+        } catch (error) {
+            console.error('Error loading accounts:', error);
+        }
     }, [ejercicio.id]);
 
-    const loadCuentas = async () => {
-        const list = await getCuentas(ejercicio.id);
-        list.sort((a, b) => a.codigo.localeCompare(b.codigo));
-        setCuentas(list);
-    };
+    useEffect(() => {
+        loadCuentas();
+    }, [loadCuentas]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -148,12 +152,8 @@ export default function ChartOfAccounts({ ejercicio }) {
                             placeholder="Search account..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.5rem 0.5rem 0.5rem 2rem',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--color-border)'
-                            }}
+                            className="input"
+                            style={{ paddingLeft: '2rem' }}
                         />
                     </div>
                 </div>
@@ -228,21 +228,21 @@ export default function ChartOfAccounts({ ejercicio }) {
                     </div>
 
                     {error && (
-                        <div style={{ padding: '0.75rem', background: '#fef2f2', color: '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.875rem', display: 'flex', gap: '0.5rem' }}>
+                        <div className="alert alert-error" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
                             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
                             {error}
                         </div>
                     )}
 
                     {success && (
-                        <div style={{ padding: '0.75rem', background: '#f0fdf4', color: '#166534', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                        <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
                             {success}
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit}>
                         <div style={{ marginBottom: '1rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Code (3 to 6 digits)</label>
+                            <label className="label">Code (3 to 6 digits)</label>
                             <input
                                 type="text"
                                 value={formData.codigo}
@@ -252,7 +252,8 @@ export default function ChartOfAccounts({ ejercicio }) {
                                     setFormData({ ...formData, codigo: val });
                                 }}
                                 placeholder="e.g. 110001"
-                                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontFamily: 'monospace', fontSize: '1rem' }}
+                                className="input"
+                                style={{ padding: '0.75rem', fontFamily: 'monospace', fontSize: '1rem' }}
                             />
                             <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
                                 {editingId ? 'If you change the code, all entries will be updated.' : 'It should belong to an existing group (e.g. 1100...).'}
@@ -260,13 +261,14 @@ export default function ChartOfAccounts({ ejercicio }) {
                         </div>
 
                         <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Account Name</label>
+                            <label className="label">Account Name</label>
                             <input
                                 type="text"
                                 value={formData.nombre}
                                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                                 placeholder="e.g. Accounts Receivable (Customer X)"
-                                style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
+                                className="input"
+                                style={{ padding: '0.75rem' }}
                             />
                         </div>
 

@@ -1,5 +1,6 @@
 import { openDB } from 'idb';
 import { PGC_BASICO } from './coa_us';
+import { round2 } from '../utils/money';
 
 const DB_NAME = 'ContaLabDB';
 const DB_VERSION = 1;
@@ -187,7 +188,10 @@ export const getAsientos = async (ejercicioId) => {
         apuntes: apuntesPorAsiento[asiento.id] || []
     }));
 
-    return asientosCompletos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha) || b.numero - a.numero);
+    // Descendente por fecha y número (las fechas YYYY-MM-DD ordenan bien como string)
+    return asientosCompletos.sort((a, b) =>
+        (b.fecha || '').localeCompare(a.fecha || '') || b.numero - a.numero
+    );
 };
 
 export const createAsiento = async (ejercicioId, fecha, concepto, apuntes) => {
@@ -213,8 +217,8 @@ export const createAsiento = async (ejercicioId, fecha, concepto, apuntes) => {
             asiento_id: asientoId,
             ejercicio_id: ejercicioId,
             cuenta_codigo: apunte.cuenta_codigo,
-            debe: parseFloat(apunte.debe) || 0,
-            haber: parseFloat(apunte.haber) || 0,
+            debe: round2(parseFloat(apunte.debe) || 0),
+            haber: round2(parseFloat(apunte.haber) || 0),
             concepto_linea: apunte.concepto || concepto // Hereda concepto si no tiene específico
         });
     }
@@ -269,8 +273,8 @@ export const updateAsiento = async (id, fecha, concepto, apuntes) => {
             asiento_id: id,
             ejercicio_id: asiento.ejercicio_id,
             cuenta_codigo: apunte.cuenta_codigo,
-            debe: parseFloat(apunte.debe) || 0,
-            haber: parseFloat(apunte.haber) || 0,
+            debe: round2(parseFloat(apunte.debe) || 0),
+            haber: round2(parseFloat(apunte.haber) || 0),
             concepto_linea: apunte.concepto || concepto
         });
     }

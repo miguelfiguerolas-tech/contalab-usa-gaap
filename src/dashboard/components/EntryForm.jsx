@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Save, X } from 'lucide-react';
 import { getCuentas, createAsiento, updateAsiento } from '../../db';
 import { formatCurrency } from '../../utils/format';
+import { EPSILON } from '../../utils/money';
 
 export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onSuccess }) {
     const [fecha, setFecha] = useState(initialData ? initialData.fecha : new Date().toISOString().split('T')[0]);
@@ -10,8 +11,8 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
     // Si fueran lo mismo, el input se reescribiría a "código - nombre" en cuanto
     // lo tecleado coincidiera con una cuenta, impidiendo escribir subcuentas
     // (ej. 430001 cuando existe la 430).
-    const [lines, setLines] = useState(initialData ? initialData.apuntes.map(a => ({
-        id: a.id || Math.random(), // Ensure ID for key
+    const [lines, setLines] = useState(initialData ? initialData.apuntes.map((a, i) => ({
+        id: a.id ?? `initial-${i}`, // Ensure ID for key (stable, render must stay pure)
         cuenta_codigo: a.cuenta_codigo,
         texto: null, // null = mostrar "código - nombre" derivado
         debe: a.debe || '',
@@ -24,14 +25,18 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
     const [cuentas, setCuentas] = useState([]);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        loadCuentas();
+    const loadCuentas = useCallback(async () => {
+        try {
+            const list = await getCuentas(ejercicioId);
+            setCuentas(list);
+        } catch (error) {
+            console.error('Error loading accounts:', error);
+        }
     }, [ejercicioId]);
 
-    const loadCuentas = async () => {
-        const list = await getCuentas(ejercicioId);
-        setCuentas(list);
-    };
+    useEffect(() => {
+        loadCuentas();
+    }, [loadCuentas]);
 
     const handleLineChange = (id, field, value) => {
         setLines(prevLines => prevLines.map(line =>
@@ -82,7 +87,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
     };
 
     const addLine = () => {
-        setLines([...lines, { id: Date.now(), cuenta_codigo: '', debe: '', haber: '', concepto: '' }]);
+        setLines([...lines, { id: Date.now(), cuenta_codigo: '', texto: null, debe: '', haber: '', concepto: '' }]);
     };
 
     const removeLine = (id) => {
@@ -102,7 +107,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
         setError('');
 
         const { diff } = calculateTotals();
-        if (Math.abs(diff) > 0.01) {
+        if (Math.abs(diff) > EPSILON) {
             setError(`The entry is out of balance. Difference: ${formatCurrency(diff)}`);
             return;
         }
@@ -157,10 +162,12 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
     };
 
     const { totalDebe, totalHaber, diff } = calculateTotals();
-    const isBalanced = Math.abs(diff) < 0.01;
+    const isBalanced = Math.abs(diff) < EPSILON;
 
-    // Aviso (no bloqueante) si la fecha cae fuera del año del ejercicio
-    const fueraDeAnyo = anyo && fecha && new Date(fecha).getFullYear() !== Number(anyo);
+    // Aviso (no bloqueante) si la fecha cae fuera del año del ejercicio.
+    // El año se lee del string (YYYY-MM-DD): new Date() lo trataría como UTC
+    // y el 1 de enero caería en el año anterior en zonas horarias americanas.
+    const fueraDeAnyo = anyo && fecha && Number(fecha.slice(0, 4)) !== Number(anyo);
 
     return (
         <div className="modal-overlay">
@@ -180,12 +187,13 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                     {/* Cabecera Asiento */}
                     <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Date</label>
+                            <label className="label">Date</label>
                             <input
                                 type="date"
                                 value={fecha}
                                 onChange={(e) => setFecha(e.target.value)}
-                                style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${fueraDeAnyo ? '#f59e0b' : 'var(--color-border)'}` }}
+                                className="input"
+                                style={fueraDeAnyo ? { borderColor: '#f59e0b' } : undefined}
                             />
                             {fueraDeAnyo && (
                                 <p style={{ fontSize: '0.75rem', color: '#b45309', marginTop: '0.25rem' }}>
@@ -194,13 +202,13 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                             )}
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem' }}>Description</label>
+                            <label className="label">Description</label>
                             <input
                                 type="text"
                                 value={conceptoGlobal}
                                 onChange={(e) => setConceptoGlobal(e.target.value)}
                                 placeholder="e.g. Owner investment"
-                                style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                                className="input"
                             />
                         </div>
                     </div>
@@ -234,7 +242,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                                             onBlur={() => handleCuentaBlur(line.id)}
                                             onFocus={(e) => e.target.select()}
                                             placeholder="Search account..."
-                                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                                            className="input"
                                         />
                                     </td>
                                     <td style={{ padding: '0.5rem' }}>
@@ -243,7 +251,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                                             value={line.concepto}
                                             onChange={(e) => handleLineChange(line.id, 'concepto', e.target.value)}
                                             placeholder={conceptoGlobal || "Memo..."}
-                                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                                            className="input"
                                         />
                                     </td>
                                     <td style={{ padding: '0.5rem' }}>
@@ -253,7 +261,8 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                                             min="0"
                                             value={line.debe}
                                             onChange={(e) => handleAmountChange(line.id, 'debe', e.target.value)}
-                                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', textAlign: 'right' }}
+                                            className="input"
+                                            style={{ textAlign: 'right' }}
                                         />
                                     </td>
                                     <td style={{ padding: '0.5rem' }}>
@@ -263,7 +272,8 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                                             min="0"
                                             value={line.haber}
                                             onChange={(e) => handleAmountChange(line.id, 'haber', e.target.value)}
-                                            style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', textAlign: 'right' }}
+                                            className="input"
+                                            style={{ textAlign: 'right' }}
                                         />
                                     </td>
                                     <td style={{ padding: '0.5rem', textAlign: 'center' }}>
@@ -293,7 +303,7 @@ export default function EntryForm({ ejercicioId, anyo, initialData, onClose, onS
                 {/* Footer & Totals */}
                 <div style={{ padding: '1.5rem', background: '#f8fafc', borderTop: '1px solid var(--color-border)' }}>
                     {error && (
-                        <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-sm)', fontSize: '0.875rem' }}>
+                        <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
                             {error}
                         </div>
                     )}

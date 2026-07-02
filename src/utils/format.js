@@ -4,7 +4,7 @@
 const makeFormatter = (options) => {
     try {
         return new Intl.NumberFormat('en-US', { ...options, useGrouping: 'always' });
-    } catch (e) {
+    } catch {
         // Older browsers without useGrouping 'always'
         return new Intl.NumberFormat('en-US', options);
     }
@@ -31,4 +31,13 @@ export const formatCurrency = (amount) => {
 export const formatNumber = (amount) => {
     if (amount === undefined || amount === null || amount === '') return '-';
     return NUMBER.format(Number(amount));
+};
+
+// Entry dates are stored as date-only strings (YYYY-MM-DD). `new Date(str)`
+// would parse them as UTC midnight, which displays as the previous day in
+// any timezone west of Greenwich (all of the US).
+export const formatDate = (isoDate) => {
+    if (!isoDate) return '-';
+    const [y, m, d] = isoDate.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US');
 };

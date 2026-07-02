@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatCurrency, formatNumber } from './format';
+import { formatCurrency, formatNumber, formatDate } from './format';
 
 // Exports the whole Journal: each entry with its header and lines.
 export const exportDiarioToPDF = (asientos, cuentasMap, ejercicio) => {
@@ -17,13 +17,13 @@ export const exportDiarioToPDF = (asientos, cuentasMap, ejercicio) => {
 
     // The journal is shown in ascending chronological order.
     const ordenados = [...asientos].sort((a, b) =>
-        new Date(a.fecha) - new Date(b.fecha) || a.numero - b.numero
+        (a.fecha || '').localeCompare(b.fecha || '') || a.numero - b.numero
     );
 
     const body = [];
     ordenados.forEach(asiento => {
         body.push([{
-            content: `Entry #${asiento.numero}  ·  ${new Date(asiento.fecha).toLocaleDateString('en-US')}  ·  ${asiento.concepto}`,
+            content: `Entry #${asiento.numero}  ·  ${formatDate(asiento.fecha)}  ·  ${asiento.concepto}`,
             colSpan: 5,
             styles: { fontStyle: 'bold', fillColor: [241, 245, 249] }
         }]);
@@ -76,7 +76,7 @@ export const exportMayorToPDF = (movimientos, cuenta, ejercicio) => {
     const saldoFinal = sumaDebe - sumaHaber;
 
     const body = movimientos.map(m => [
-        new Date(m.fecha).toLocaleDateString('en-US'),
+        formatDate(m.fecha),
         `#${m.asiento_numero}`,
         m.concepto_linea || '',
         m.debe ? formatNumber(m.debe) : '',

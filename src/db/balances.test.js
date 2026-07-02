@@ -53,6 +53,14 @@ describe('buildSumasYSaldos (trial balance)', () => {
         const result = buildSumasYSaldos([cuenta('3010'), cuenta('1100')], [apunte('1100', 100)]);
         expect(result.map(r => r.codigo)).toEqual(['1100']);
     });
+
+    it('rounds float accumulation to the cent (0.1 + 0.2 = 0.3)', () => {
+        const result = sumas(['1100', 0.1, 0], ['1100', 0.2, 0], ['1100', 0, 0.3]);
+        expect(result[0].sumaDebe).toBe(0.3);
+        expect(result[0].saldoNeto).toBe(0);
+        expect(result[0].saldoDeudor).toBe(0);
+        expect(result[0].saldoAcreedor).toBe(0);
+    });
 });
 
 // Balance Sheet ---------------------------------------------------------

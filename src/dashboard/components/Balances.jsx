@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Download, FileText } from 'lucide-react';
 import { getSumasYSaldos, getBalanceSituacion, getCuentaResultados } from '../../db/balances';
-import { exportToPDF } from '../../utils/pdfExport';
 import { formatCurrency } from '../../utils/format';
 
 // Componente recursivo para renderizar nodos del Balance
@@ -49,11 +48,7 @@ export default function Balances({ ejercicio }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        loadData();
-    }, [ejercicio.id, activeTab]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
             if (activeTab === 'sumas') {
@@ -71,10 +66,16 @@ export default function Balances({ ejercicio }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [ejercicio.id, activeTab]);
 
-    const handleExportPDF = () => {
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    // Import dinámico: jsPDF pesa ~300 kB y solo hace falta al exportar
+    const handleExportPDF = async () => {
         if (!data) return;
+        const { exportToPDF } = await import('../../utils/pdfExport');
         exportToPDF(activeTab, data, ejercicio);
     };
 

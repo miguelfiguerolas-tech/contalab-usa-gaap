@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Calendar, Edit2, Trash2, FileText } from 'lucide-react';
 import { getAsientos, getCuentas, deleteAsiento } from '../../db';
-import { formatNumber } from '../../utils/format';
-import { exportDiarioToPDF } from '../../utils/pdfExport';
+import { formatNumber, formatDate } from '../../utils/format';
 import EntryForm from './EntryForm';
 import ConfirmModal from './ConfirmModal';
 
@@ -22,24 +21,29 @@ export default function Journal({ ejercicio }) {
         onConfirm: null
     });
 
-    useEffect(() => {
-        loadData();
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [asientosList, cuentasList] = await Promise.all([
+                getAsientos(ejercicio.id),
+                getCuentas(ejercicio.id)
+            ]);
+
+            const map = {};
+            cuentasList.forEach(c => map[c.codigo] = c.nombre);
+            setCuentasMap(map);
+
+            setAsientos(asientosList);
+        } catch (error) {
+            console.error('Error loading the journal:', error);
+        } finally {
+            setLoading(false);
+        }
     }, [ejercicio.id]);
 
-    const loadData = async () => {
-        setLoading(true);
-        const [asientosList, cuentasList] = await Promise.all([
-            getAsientos(ejercicio.id),
-            getCuentas(ejercicio.id)
-        ]);
-
-        const map = {};
-        cuentasList.forEach(c => map[c.codigo] = c.nombre);
-        setCuentasMap(map);
-
-        setAsientos(asientosList);
-        setLoading(false);
-    };
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const handleDelete = (id) => {
         setConfirmModal({
@@ -56,6 +60,12 @@ export default function Journal({ ejercicio }) {
     const handleEdit = (asiento) => {
         setEditingAsiento(asiento);
         setShowForm(true);
+    };
+
+    // Import dinámico: jsPDF pesa ~300 kB y solo hace falta al exportar
+    const handleExportPDF = async () => {
+        const { exportDiarioToPDF } = await import('../../utils/pdfExport');
+        exportDiarioToPDF(asientos, cuentasMap, ejercicio);
     };
 
     // Filtrar por concepto, número de asiento, código o nombre de cuenta
@@ -89,18 +99,14 @@ export default function Journal({ ejercicio }) {
                         placeholder="Search entries..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.5rem 0.5rem 0.5rem 2.25rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--color-border)'
-                        }}
+                        className="input"
+                        style={{ paddingLeft: '2.25rem' }}
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
                         className="btn"
-                        onClick={() => exportDiarioToPDF(asientos, cuentasMap, ejercicio)}
+                        onClick={handleExportPDF}
                         disabled={asientos.length === 0}
                         title="Export the full Journal to PDF"
                         style={{ background: 'white', border: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626' }}
@@ -142,7 +148,7 @@ export default function Journal({ ejercicio }) {
                                 <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>#{asiento.numero}</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
                                     <Calendar size={14} />
-                                    <span>{new Date(asiento.fecha).toLocaleDateString('en-US')}</span>
+                                    <span>{formatDate(asiento.fecha)}</span>
                                 </div>
                                 <span style={{ fontWeight: 500 }}>{asiento.concepto}</span>
                             </div>

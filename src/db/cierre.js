@@ -7,9 +7,7 @@ import {
     RETAINED_EARNINGS,
     DIVIDENDS
 } from './accountTypes';
-
-// Threshold to ignore rounding leftovers.
-const EPSILON = 0.005;
+import { EPSILON } from '../utils/money';
 
 // Descriptions used for the two closing journal entries (the audit detects a
 // closing entry by the word "closing", so keep it in the text).

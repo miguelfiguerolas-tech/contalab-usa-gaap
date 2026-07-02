@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, LayoutDashboard, Calculator, Settings, FileText, LogOut, List, Home, ClipboardCheck, Download, Coffee } from 'lucide-react';
+import { BookOpen, Calculator, Settings, FileText, LogOut, List, Home, ClipboardCheck, Download, Coffee } from 'lucide-react';
 import { getEjercicios } from '../db';
-import { exportEjercicio } from '../db/backup';
+import { downloadEjercicioJSON } from '../utils/download';
 import { BMC_URL } from '../utils/links';
 import ExerciseList from './components/ExerciseList';
 import Journal from './components/Journal';
@@ -11,6 +11,19 @@ import Config from './components/Config';
 import Summary from './components/Summary';
 import ChartOfAccounts from './components/ChartOfAccounts';
 import DashboardHome from './components/DashboardHome';
+
+// Fuente única de la navegación: alimenta el menú lateral, el título de la
+// cabecera y el contenido de cada pestaña. `label` es el texto del menú y
+// `title` el de la cabecera (a veces difieren, ej. Statements).
+const TABS = [
+    { id: 'inicio', label: 'Dashboard', title: 'Dashboard', icon: Home, render: (ctx) => <DashboardHome ejercicio={ctx.ejercicio} /> },
+    { id: 'diario', label: 'Journal', title: 'Journal', icon: BookOpen, render: (ctx) => <Journal ejercicio={ctx.ejercicio} /> },
+    { id: 'mayor', label: 'General Ledger', title: 'General Ledger', icon: FileText, render: (ctx) => <Ledger ejercicio={ctx.ejercicio} initialCuenta={ctx.cuentaMayor} /> },
+    { id: 'plan', label: 'Chart of Accounts', title: 'Chart of Accounts', icon: List, render: (ctx) => <ChartOfAccounts ejercicio={ctx.ejercicio} /> },
+    { id: 'balances', label: 'Statements', title: 'Financial Statements', icon: Calculator, render: (ctx) => <Balances ejercicio={ctx.ejercicio} /> },
+    { id: 'resumen', label: 'Review', title: 'Review & Correction', icon: ClipboardCheck, render: (ctx) => <Summary ejercicio={ctx.ejercicio} onVerCuenta={ctx.onVerCuenta} /> },
+    { id: 'config', label: 'Settings & Credits', title: 'Settings & Credits', icon: Settings, footer: true, render: (ctx) => <Config ejercicio={ctx.ejercicio} /> },
+];
 
 export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('inicio');
@@ -65,16 +78,7 @@ export default function Dashboard() {
     // Descarga directa del JSON de entrega (mismo formato que en Gestión)
     const handleExportJSON = async () => {
         try {
-            const json = await exportEjercicio(activeEjercicio.id);
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `contalab_${activeEjercicio.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            await downloadEjercicioJSON(activeEjercicio);
             showToast('✓ Submission downloaded');
         } catch (error) {
             console.error('Error exporting:', error);
@@ -89,26 +93,16 @@ export default function Dashboard() {
         return <ExerciseList onSelect={handleSelectEjercicio} />;
     }
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'inicio':
-                return <DashboardHome ejercicio={activeEjercicio} />;
-            case 'resumen':
-                return <Summary ejercicio={activeEjercicio} onVerCuenta={handleVerCuenta} />;
-            case 'diario':
-                return <Journal ejercicio={activeEjercicio} />;
-            case 'mayor':
-                return <Ledger ejercicio={activeEjercicio} initialCuenta={cuentaMayor} />;
-            case 'plan':
-                return <ChartOfAccounts ejercicio={activeEjercicio} />;
-            case 'balances':
-                return <Balances ejercicio={activeEjercicio} />;
-            case 'config':
-                return <Config ejercicio={activeEjercicio} />;
-            default:
-                return <div>Select an option</div>;
-        }
+    // Al cambiar de pestaña desde el menú se limpia la preselección del Mayor:
+    // solo handleVerCuenta (saltar desde Auditoría) debe preseleccionar cuenta.
+    // Si se re-pulsa la pestaña activa no se toca nada (evita resetear la vista).
+    const handleNavClick = (id) => {
+        if (id !== activeTab) setCuentaMayor(null);
+        setActiveTab(id);
     };
+
+    const currentTab = TABS.find(t => t.id === activeTab);
+    const tabContext = { ejercicio: activeEjercicio, cuentaMayor, onVerCuenta: handleVerCuenta };
 
     return (
         <div style={{ display: 'flex', height: '100vh', backgroundColor: 'var(--color-bg)' }}>
@@ -152,17 +146,28 @@ export default function Dashboard() {
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <NavItem icon={<Home size={20} />} label="Dashboard" active={activeTab === 'inicio'} onClick={() => setActiveTab('inicio')} />
-                    <NavItem icon={<BookOpen size={20} />} label="Journal" active={activeTab === 'diario'} onClick={() => setActiveTab('diario')} />
-                    <NavItem icon={<FileText size={20} />} label="General Ledger" active={activeTab === 'mayor'} onClick={() => { setCuentaMayor(null); setActiveTab('mayor'); }} />
-                    <NavItem icon={<List size={20} />} label="Chart of Accounts" active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} />
-                    <NavItem icon={<Calculator size={20} />} label="Statements" active={activeTab === 'balances'} onClick={() => setActiveTab('balances')} />
-                    <NavItem icon={<ClipboardCheck size={20} />} label="Review" active={activeTab === 'resumen'} onClick={() => setActiveTab('resumen')} />
+                    {TABS.filter(tab => !tab.footer).map(tab => (
+                        <NavItem
+                            key={tab.id}
+                            icon={<tab.icon size={20} />}
+                            label={tab.label}
+                            active={activeTab === tab.id}
+                            onClick={() => handleNavClick(tab.id)}
+                        />
+                    ))}
                     <NavItem icon={<Download size={20} />} label="Export Submission" active={false} onClick={handleExportJSON} />
                 </nav>
 
                 <div style={{ marginTop: 'auto', borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
-                    <NavItem icon={<Settings size={20} />} label="Settings & Credits" active={activeTab === 'config'} onClick={() => setActiveTab('config')} />
+                    {TABS.filter(tab => tab.footer).map(tab => (
+                        <NavItem
+                            key={tab.id}
+                            icon={<tab.icon size={20} />}
+                            label={tab.label}
+                            active={activeTab === tab.id}
+                            onClick={() => handleNavClick(tab.id)}
+                        />
+                    ))}
                     <a
                         href={BMC_URL}
                         target="_blank"
@@ -189,18 +194,11 @@ export default function Dashboard() {
             <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
                 <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                        {activeTab === 'inicio' ? 'Dashboard' :
-                            activeTab === 'diario' ? 'Journal' :
-                                activeTab === 'mayor' ? 'General Ledger' :
-                                    activeTab === 'balances' ? 'Financial Statements' :
-                                        activeTab === 'resumen' ? 'Review & Correction' :
-                                            activeTab === 'plan' ? 'Chart of Accounts' :
-                                                'Settings & Credits'}
+                        {currentTab ? currentTab.title : ''}
                     </h2>
-
                 </header>
 
-                {renderContent()}
+                {currentTab ? currentTab.render(tabContext) : <div>Select an option</div>}
             </main>
 
             {/* Toast de confirmación */}
